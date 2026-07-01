@@ -9,6 +9,15 @@ namespace fgui {
         public static ROLL_OUT: string = "fui_roll_out";
         public static MOUSE_WHEEL: string = "fui_mouse_wheel"
 
+        // navigate
+        public static KEY_LEFT: string = "fui_key_left";
+        public static KEY_RIGHT: string = "fui_key_right";
+        public static KEY_UP: string = "fui_key_up";
+        public static KEY_DOWN: string = "fui_key_down";
+        public static KEY_BACK: string = "fui_key_back";
+        public static KEY_ENTER: string = "fui_key_enter";
+
+
         public static DISPLAY: string = "fui_display";
         public static UNDISPLAY: string = "fui_undisplay";
         public static GEAR_STOP: string = "fui_gear_stop";

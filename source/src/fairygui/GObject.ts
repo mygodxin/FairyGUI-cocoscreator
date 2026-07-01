@@ -56,6 +56,9 @@ namespace fgui {
 
         private _hitTestPt?: cc.Vec2;
 
+        // navigate 是否可导航
+        private _navigate: boolean = false;
+
         public static _defaultGroupIndex: number = -1;
 
         public constructor() {

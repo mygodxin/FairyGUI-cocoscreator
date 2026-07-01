@@ -13,6 +13,8 @@ namespace fgui {
         private _volumeScale: number;
         private _inputProcessor: InputProcessor;
         private _thisOnResized: Function;
+        // navigate 可导航的子项
+        private _navigateChildren: Array<GObject> = new Array<GObject>();
 
         private static _inst: GRoot;
 
@@ -48,6 +50,8 @@ namespace fgui {
 
             this._inputProcessor = this.node.addComponent(InputProcessor);
             this._inputProcessor._captureCallback = this.onTouchBegin_1;
+            // navigate
+            cc.systemEvent.on('keydown', this.onKeyDown, this);
 
             if (CC_EDITOR) {
                 (<any>cc).engine.on('design-resolution-changed', this._thisOnResized);
@@ -429,6 +433,60 @@ namespace fgui {
                 GRoot.contentScaleLevel = 1; //x2
             else
                 GRoot.contentScaleLevel = 0;
+        }
+
+        // navigate
+        private onKeyDown(event: cc.Event.EventKeyboard) {
+            let keyCode = event.keyCode;
+            switch (keyCode) {
+                case cc.macro.KEY.up: //38
+                case cc.macro.KEY.w: //87
+                case 19:// 通常代表游戏手柄的"上"方向键或"Y"按钮
+                    this.doKeyNavigate('up');
+                    break;
+                case cc.macro.KEY.down: //40
+                case cc.macro.KEY.s: //83
+                case 20:// 通常代表游戏手柄的"下"方向键或"A"按钮
+                    this.doKeyNavigate('down');
+                    break;
+                case cc.macro.KEY.left://37
+                case cc.macro.KEY.a: //65
+                case 21:// 通常代表游戏手柄的某个功能键，可能是"左 bumper"或特定功能键
+                    this.doKeyNavigate(Event.KEY_LEFT);
+                    break;
+                case cc.macro.KEY.right: //39
+                case cc.macro.KEY.d: //68
+                case 22:// 通常代表游戏手柄的"右 bumper"或特定功能键
+                    this.doKeyNavigate(Event.KEY_RIGHT);
+                    break;
+                case cc.macro.KEY.enter: //13
+                case 23:
+                    // 回车键触发当前焦点按钮的点击事件
+                    this.doKeyClick();
+                    break;
+                case cc.macro.KEY.back: // 6
+                case cc.macro.KEY.escape: // 27
+                case 4://back ecs触发当前焦点按钮的点击事件
+                    this.doKeyExit();
+                    break;
+                case cc.macro.KEY.f1:
+                    break;
+                case cc.macro.KEY.menu: // 18
+                case 82:
+                    //菜单键
+                    break;
+            }
+        }
+
+        private doKeyNavigate(direction: string) {
+
+        }
+
+        private doKeyClick() {
+
+        }
+
+        private doKeyExit() {
         }
     }
 }
