@@ -290,6 +290,7 @@ declare namespace fgui {
         _partner: GObjectPartner;
         _treeNode?: GTreeNode;
         private _hitTestPt?;
+        canNavigate: boolean;
         static _defaultGroupIndex: number;
         constructor();
         get id(): string;
@@ -553,6 +554,7 @@ declare namespace fgui {
         setup_afterAdd(buffer: ByteBuffer, beginPos: number): void;
         protected onEnable(): void;
         protected onDisable(): void;
+        searchNavigateChildren(): GObject[];
     }
 }
 declare namespace fgui {
@@ -568,6 +570,8 @@ declare namespace fgui {
         private _sound;
         private _soundVolumeScale;
         private _buttonController;
+        private _navigate;
+        private _navigateController;
         private _relatedController?;
         private _relatedPageId;
         private _changeStateOnClick;
@@ -605,6 +609,8 @@ declare namespace fgui {
         set soundVolumeScale(value: number);
         set selected(val: boolean);
         get selected(): boolean;
+        set navigate(val: boolean);
+        get navigate(): boolean;
         get mode(): ButtonMode;
         set mode(value: ButtonMode);
         get relatedController(): Controller;
@@ -1278,6 +1284,8 @@ declare namespace fgui {
         private _volumeScale;
         private _inputProcessor;
         private _thisOnResized;
+        private _navigateChildren;
+        private _currentNavigate;
         private static _inst;
         static get inst(): GRoot;
         static create(): GRoot;
@@ -1315,6 +1323,17 @@ declare namespace fgui {
         private onWinResize;
         handlePositionChanged(): void;
         private updateContentScaleLevel;
+        private onKeyDown;
+        private doKeyClick;
+        private doKeyExit;
+        get currentNavigate(): GObject;
+        set currentNavigate(value: GObject);
+        findSelectable(dir: cc.Vec2): fgui.GObject;
+        findSelectableOnUp(): GObject;
+        findSelectableOnDown(): GObject;
+        findSelectableOnLeft(): GObject;
+        findSelectableOnRight(): GObject;
+        resetNavigateChildren(): void;
     }
 }
 declare namespace fgui {
@@ -2164,6 +2183,12 @@ declare namespace fgui {
         static ROLL_OVER: string;
         static ROLL_OUT: string;
         static MOUSE_WHEEL: string;
+        static KEY_LEFT: string;
+        static KEY_RIGHT: string;
+        static KEY_UP: string;
+        static KEY_DOWN: string;
+        static KEY_BACK: string;
+        static KEY_ENTER: string;
         static DISPLAY: string;
         static UNDISPLAY: string;
         static GEAR_STOP: string;

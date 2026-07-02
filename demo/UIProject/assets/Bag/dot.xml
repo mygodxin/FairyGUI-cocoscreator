@@ -1,11 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <component size="15,15" extention="Button">
   <controller name="button" pages="0,up,1,down" selected="0"/>
+  <controller name="nav" pages="0,,1," selected="0"/>
   <displayList>
     <graph id="n23_osdo" name="n23" xy="0,0" size="15,15" type="eclipse" lineSize="0" fillColor="#ff3f5b5f"/>
     <graph id="n22" name="n22" xy="0,0" size="15,15" type="eclipse" lineSize="0" fillColor="#ff849da4">
       <gearDisplay controller="button" pages="1"/>
     </graph>
+    <text id="n24_akx9" name="n24" xy="-19,-9" size="53,34" fontSize="24" color="#ff0000" align="center" vAlign="middle" autoSize="none" text="选">
+      <gearDisplay controller="nav" pages="1"/>
+    </text>
   </displayList>
   <Button mode="Radio"/>
 </component>

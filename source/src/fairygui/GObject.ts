@@ -56,8 +56,8 @@ namespace fgui {
 
         private _hitTestPt?: cc.Vec2;
 
-        // navigate 是否可导航
-        private _navigate: boolean = false;
+        /** 是否可导航到该对象 */
+        public canNavigate: boolean = false;
 
         public static _defaultGroupIndex: number = -1;
 
@@ -1207,6 +1207,8 @@ namespace fgui {
             }
         }
         //-------------------------------------------------------------------
+
+
     }
 
     var sGlobalDragStart: cc.Vec2 = new cc.Vec2();
@@ -1231,6 +1233,7 @@ namespace fgui {
         }
 
         protected onEnable() {
+
             this.node["$gobj"].onEnable();
 
             if (this._emitDisplayEvents)

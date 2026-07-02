@@ -15,6 +15,7 @@ namespace fgui {
         private _thisOnResized: Function;
         // navigate 可导航的子项
         private _navigateChildren: Array<GObject> = new Array<GObject>();
+        private _currentNavigate: GObject = null;
 
         private static _inst: GRoot;
 
@@ -102,6 +103,7 @@ namespace fgui {
                 win.y = 0;
 
             this.adjustModalLayer();
+            this.resetNavigateChildren();
         }
 
         public hideWindow(win: Window): void {
@@ -113,6 +115,7 @@ namespace fgui {
                 this.removeChild(win);
 
             this.adjustModalLayer();
+            this.resetNavigateChildren();
         }
 
         public bringToFront(win: Window): void {
@@ -442,22 +445,22 @@ namespace fgui {
                 case cc.macro.KEY.up: //38
                 case cc.macro.KEY.w: //87
                 case 19:// 通常代表游戏手柄的"上"方向键或"Y"按钮
-                    this.doKeyNavigate('up');
+                    this.currentNavigate = this.findSelectableOnUp();
                     break;
                 case cc.macro.KEY.down: //40
                 case cc.macro.KEY.s: //83
                 case 20:// 通常代表游戏手柄的"下"方向键或"A"按钮
-                    this.doKeyNavigate('down');
+                    this.currentNavigate = this.findSelectableOnDown();
                     break;
                 case cc.macro.KEY.left://37
                 case cc.macro.KEY.a: //65
                 case 21:// 通常代表游戏手柄的某个功能键，可能是"左 bumper"或特定功能键
-                    this.doKeyNavigate(Event.KEY_LEFT);
+                    this.currentNavigate = this.findSelectableOnLeft();
                     break;
                 case cc.macro.KEY.right: //39
                 case cc.macro.KEY.d: //68
                 case 22:// 通常代表游戏手柄的"右 bumper"或特定功能键
-                    this.doKeyNavigate(Event.KEY_RIGHT);
+                    this.currentNavigate = this.findSelectableOnRight();
                     break;
                 case cc.macro.KEY.enter: //13
                 case 23:
@@ -478,15 +481,137 @@ namespace fgui {
             }
         }
 
-        private doKeyNavigate(direction: string) {
-
-        }
-
         private doKeyClick() {
 
         }
 
         private doKeyExit() {
+        }
+
+        public get currentNavigate(): GObject {
+            return this._currentNavigate;
+        }
+        public set currentNavigate(value: GObject) {
+            this._currentNavigate = value;
+
+            var navigateChildren = this._navigateChildren;
+
+            let len = navigateChildren.length;
+            for (let i: number = 0; i < len; ++i) {
+                let child: GObject = navigateChildren[i];
+                if (child instanceof GButton)
+                    child.navigate = value == child;
+            }
+        }
+
+        public findSelectable(dir: cc.Vec2): fgui.GObject {
+            var current = this.currentNavigate;
+            if (!current || this._navigateChildren.length === 0) return current;
+
+            dir = dir.normalize();
+            dir.y = -dir.y;
+
+            // 计算当前对象的中心点（而不是左上角）
+            const currentRect = current.localToGlobalRect(0, 0, current._width, current._height);
+            const startPos = cc.v2(currentRect.x + currentRect.width * 0.5, currentRect.y + currentRect.height * 0.5);
+
+            let bestPick: fgui.GObject = null;
+            let bestFurthestPick: fgui.GObject = null;
+            let maxScore = -Infinity;
+            let maxFurthestScore = -Infinity;
+
+            // 检查是否启用循环导航
+            let wantsWrapAround = true;
+
+            for (const sel of this._navigateChildren) {
+                if (sel === current) continue;
+                if (!sel._finalVisible || !(sel as any).enabled || !(sel as any).touchable) continue;
+
+                const selRect = sel.localToGlobalRect(0, 0, sel._width, sel._height);
+                const selCenter = cc.v2(selRect.x + selRect.width * 0.5, selRect.y + selRect.height * 0.5);
+
+                const myVector = selCenter.sub(startPos);
+                const dot = myVector.dot(dir);
+
+                // 如果元素在反方向且启用了循环导航，记录最远的那个
+                if (wantsWrapAround && dot < 0) {
+                    const score = -dot * myVector.magSqr();
+
+                    if (score > maxFurthestScore) {
+                        maxFurthestScore = score;
+                        bestFurthestPick = sel;
+                    }
+
+                    continue;
+                }
+
+                // 跳过方向错误或距离为0的元素
+                if (dot <= 0) continue;
+
+                // 方向一致性越高且距离越近，分数越高
+                const score = dot / myVector.magSqr();
+
+                if (score > maxScore) {
+                    maxScore = score;
+                    bestPick = sel;
+                }
+            }
+
+            // 如果启用了循环导航且没有找到正向的，返回最远的
+            if (wantsWrapAround && bestPick == null) return bestFurthestPick;
+
+            return bestPick || current;
+        }
+
+        public findSelectableOnUp(): GObject {
+            return this.findSelectable(cc.Vec2.UP);
+        }
+        public findSelectableOnDown(): GObject {
+            return this.findSelectable(new cc.Vec2(0, -1));
+        }
+        public findSelectableOnLeft(): GObject {
+            return this.findSelectable(new cc.Vec2(-1, 0));
+        }
+        public findSelectableOnRight(): GObject {
+            return this.findSelectable(new cc.Vec2(1, 0));
+        }
+
+        /** 重置可导航项 */
+        public resetNavigateChildren(): void {
+
+            var numChildren: number = this.numChildren;
+
+            for (var i: number = numChildren - 1; i >= 0; i--) {
+                var g: GObject = this.getChildAt(i);
+                if ((g instanceof Window)) {
+
+                    var navigateChildren = this._navigateChildren;
+
+                    let len = navigateChildren.length;
+                    for (let i: number = 0; i < len; ++i) {
+                        let child: GObject = navigateChildren[i];
+                        if (child instanceof GButton)
+                            child.navigate = false;
+                    }
+                    navigateChildren.length = 0;
+
+                    this.currentNavigate = null;
+                    let cnt: number = g._children.length;
+                    for (let i: number = 0; i < cnt; ++i) {
+                        let child: GObject = g._children[i];
+                        if (child.canNavigate && child.visible && child.enabled)
+                            navigateChildren.push(child);
+
+                        if (child instanceof GComponent)
+                            navigateChildren.push(...child.searchNavigateChildren());
+                    }
+
+                    if (navigateChildren.length > 0)
+                        this.currentNavigate = navigateChildren[0];
+
+                    break;
+                }
+            }
         }
     }
 }

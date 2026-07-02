@@ -15,6 +15,9 @@ namespace fgui {
         private _sound: string;
         private _soundVolumeScale: number;
         private _buttonController: Controller;
+        // navigate
+        private _navigate: boolean;
+        private _navigateController: Controller;
         private _relatedController?: Controller;
         private _relatedPageId: string;
         private _changeStateOnClick: boolean;
@@ -45,6 +48,9 @@ namespace fgui {
             this._changeStateOnClick = true;
             this._downEffect = 0;
             this._downEffectValue = 0.8;
+
+            // navigate
+            this.canNavigate = true;
         }
 
         public get icon(): string {
@@ -172,6 +178,16 @@ namespace fgui {
 
         public get selected(): boolean {
             return this._selected;
+        }
+
+        // navigate
+        public set navigate(val: boolean) {
+            this._navigate = val;
+            if (this._navigateController && this._navigateController.pageCount == 2)
+                this._navigateController.selectedIndex = val ? 1 : 0;
+        }
+        public get navigate(): boolean {
+            return this._navigate;
         }
 
         public get mode(): ButtonMode {
@@ -371,6 +387,7 @@ namespace fgui {
                 this.setPivot(0.5, 0.5, this.pivotAsAnchor);
 
             this._buttonController = this.getController("button");
+            this._navigateController = this.getController("nav");
             this._titleObject = this.getChild("title");
             this._iconObject = this.getChild("icon");
             if (this._titleObject)

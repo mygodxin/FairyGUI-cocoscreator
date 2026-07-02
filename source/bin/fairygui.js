@@ -4,10 +4,12 @@ window.__extends = (this && this.__extends) || (function () {
     var extendStatics = function (d, b) {
         extendStatics = Object.setPrototypeOf ||
             ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
-            function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+            function (d, b) { for (var p in b) if (Object.prototype.hasOwnProperty.call(b, p)) d[p] = b[p]; };
         return extendStatics(d, b);
     };
     return function (d, b) {
+        if (typeof b !== "function" && b !== null)
+            throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
         extendStatics(d, b);
         function __() { this.constructor = d; }
         d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
@@ -759,6 +761,7 @@ window.__extends = (this && this.__extends) || (function () {
             this._rawWidth = 0;
             this._rawHeight = 0;
             this._sizePercentInGroup = 0;
+            this.canNavigate = false;
             this._node = new cc.Node();
             if (GObject._defaultGroupIndex == -1) {
                 GObject._defaultGroupIndex = 0;
@@ -3035,6 +3038,19 @@ window.__extends = (this && this.__extends) || (function () {
             for (var i = 0; i < cnt; ++i)
                 this._transitions[i].onDisable();
         };
+        GComponent.prototype.searchNavigateChildren = function () {
+            var len = this._children.length;
+            var navigateChildren = [];
+            for (var i = 0; i < len; i++) {
+                var obj = this._children[i];
+                if (obj.canNavigate && obj.visible && obj.enabled) {
+                    navigateChildren.push(obj);
+                }
+                if (obj instanceof GComponent)
+                    navigateChildren.push.apply(navigateChildren, obj.searchNavigateChildren());
+            }
+            return navigateChildren;
+        };
         return GComponent;
     }(fgui.GObject));
     fgui.GComponent = GComponent;
@@ -3055,6 +3071,7 @@ window.__extends = (this && this.__extends) || (function () {
             _this._changeStateOnClick = true;
             _this._downEffect = 0;
             _this._downEffectValue = 0.8;
+            _this.canNavigate = true;
             return _this;
         }
         Object.defineProperty(GButton.prototype, "icon", {
@@ -3200,6 +3217,18 @@ window.__extends = (this && this.__extends) || (function () {
                             this._relatedController.oppositePageId = this._relatedPageId;
                     }
                 }
+            },
+            enumerable: false,
+            configurable: true
+        });
+        Object.defineProperty(GButton.prototype, "navigate", {
+            get: function () {
+                return this._navigate;
+            },
+            set: function (val) {
+                this._navigate = val;
+                if (this._navigateController && this._navigateController.pageCount == 2)
+                    this._navigateController.selectedIndex = val ? 1 : 0;
             },
             enumerable: false,
             configurable: true
@@ -3398,6 +3427,7 @@ window.__extends = (this && this.__extends) || (function () {
             if (this._downEffect == 2)
                 this.setPivot(0.5, 0.5, this.pivotAsAnchor);
             this._buttonController = this.getController("button");
+            this._navigateController = this.getController("nav");
             this._titleObject = this.getChild("title");
             this._iconObject = this.getChild("icon");
             if (this._titleObject)
@@ -9120,6 +9150,8 @@ window.__extends = (this && this.__extends) || (function () {
         __extends(GRoot, _super);
         function GRoot() {
             var _this = _super.call(this) || this;
+            _this._navigateChildren = new Array();
+            _this._currentNavigate = null;
             _this._node.name = "GRoot";
             _this.opaque = false;
             _this._volumeScale = 1;
@@ -9132,6 +9164,7 @@ window.__extends = (this && this.__extends) || (function () {
             _this._thisOnResized = _this.onWinResize.bind(_this);
             _this._inputProcessor = _this.node.addComponent(fgui.InputProcessor);
             _this._inputProcessor._captureCallback = _this.onTouchBegin_1;
+            cc.systemEvent.on('keydown', _this.onKeyDown, _this);
             if (CC_EDITOR) {
                 cc.engine.on('design-resolution-changed', _this._thisOnResized);
             }
@@ -9194,6 +9227,7 @@ window.__extends = (this && this.__extends) || (function () {
             else if (win.y + win.height < 0)
                 win.y = 0;
             this.adjustModalLayer();
+            this.resetNavigateChildren();
         };
         GRoot.prototype.hideWindow = function (win) {
             win.hide();
@@ -9202,6 +9236,7 @@ window.__extends = (this && this.__extends) || (function () {
             if (win.parent == this)
                 this.removeChild(win);
             this.adjustModalLayer();
+            this.resetNavigateChildren();
         };
         GRoot.prototype.bringToFront = function (win) {
             var cnt = this.numChildren;
@@ -9491,6 +9526,149 @@ window.__extends = (this && this.__extends) || (function () {
                 GRoot.contentScaleLevel = 1;
             else
                 GRoot.contentScaleLevel = 0;
+        };
+        GRoot.prototype.onKeyDown = function (event) {
+            var keyCode = event.keyCode;
+            switch (keyCode) {
+                case cc.macro.KEY.up:
+                case cc.macro.KEY.w:
+                case 19:
+                    this.currentNavigate = this.findSelectableOnUp();
+                    break;
+                case cc.macro.KEY.down:
+                case cc.macro.KEY.s:
+                case 20:
+                    this.currentNavigate = this.findSelectableOnDown();
+                    break;
+                case cc.macro.KEY.left:
+                case cc.macro.KEY.a:
+                case 21:
+                    this.currentNavigate = this.findSelectableOnLeft();
+                    break;
+                case cc.macro.KEY.right:
+                case cc.macro.KEY.d:
+                case 22:
+                    this.currentNavigate = this.findSelectableOnRight();
+                    break;
+                case cc.macro.KEY.enter:
+                case 23:
+                    this.doKeyClick();
+                    break;
+                case cc.macro.KEY.back:
+                case cc.macro.KEY.escape:
+                case 4:
+                    this.doKeyExit();
+                    break;
+                case cc.macro.KEY.f1:
+                    break;
+                case cc.macro.KEY.menu:
+                case 82:
+                    break;
+            }
+        };
+        GRoot.prototype.doKeyClick = function () {
+        };
+        GRoot.prototype.doKeyExit = function () {
+        };
+        Object.defineProperty(GRoot.prototype, "currentNavigate", {
+            get: function () {
+                return this._currentNavigate;
+            },
+            set: function (value) {
+                this._currentNavigate = value;
+                var navigateChildren = this._navigateChildren;
+                var len = navigateChildren.length;
+                for (var i = 0; i < len; ++i) {
+                    var child = navigateChildren[i];
+                    if (child instanceof fgui.GButton)
+                        child.navigate = value == child;
+                }
+            },
+            enumerable: false,
+            configurable: true
+        });
+        GRoot.prototype.findSelectable = function (dir) {
+            var current = this.currentNavigate;
+            if (!current || this._navigateChildren.length === 0)
+                return current;
+            dir = dir.normalize();
+            dir.y = -dir.y;
+            var currentRect = current.localToGlobalRect(0, 0, current._width, current._height);
+            var startPos = cc.v2(currentRect.x + currentRect.width * 0.5, currentRect.y + currentRect.height * 0.5);
+            var bestPick = null;
+            var bestFurthestPick = null;
+            var maxScore = -Infinity;
+            var maxFurthestScore = -Infinity;
+            var wantsWrapAround = true;
+            for (var _i = 0, _a = this._navigateChildren; _i < _a.length; _i++) {
+                var sel = _a[_i];
+                if (sel === current)
+                    continue;
+                if (!sel._finalVisible || !sel.enabled || !sel.touchable)
+                    continue;
+                var selRect = sel.localToGlobalRect(0, 0, sel._width, sel._height);
+                var selCenter = cc.v2(selRect.x + selRect.width * 0.5, selRect.y + selRect.height * 0.5);
+                var myVector = selCenter.sub(startPos);
+                var dot = myVector.dot(dir);
+                if (wantsWrapAround && dot < 0) {
+                    var score_1 = -dot * myVector.magSqr();
+                    if (score_1 > maxFurthestScore) {
+                        maxFurthestScore = score_1;
+                        bestFurthestPick = sel;
+                    }
+                    continue;
+                }
+                if (dot <= 0)
+                    continue;
+                var score = dot / myVector.magSqr();
+                if (score > maxScore) {
+                    maxScore = score;
+                    bestPick = sel;
+                }
+            }
+            if (wantsWrapAround && bestPick == null)
+                return bestFurthestPick;
+            return bestPick || current;
+        };
+        GRoot.prototype.findSelectableOnUp = function () {
+            return this.findSelectable(cc.Vec2.UP);
+        };
+        GRoot.prototype.findSelectableOnDown = function () {
+            return this.findSelectable(new cc.Vec2(0, -1));
+        };
+        GRoot.prototype.findSelectableOnLeft = function () {
+            return this.findSelectable(new cc.Vec2(-1, 0));
+        };
+        GRoot.prototype.findSelectableOnRight = function () {
+            return this.findSelectable(new cc.Vec2(1, 0));
+        };
+        GRoot.prototype.resetNavigateChildren = function () {
+            var numChildren = this.numChildren;
+            for (var i = numChildren - 1; i >= 0; i--) {
+                var g = this.getChildAt(i);
+                if ((g instanceof fgui.Window)) {
+                    var navigateChildren = this._navigateChildren;
+                    var len = navigateChildren.length;
+                    for (var i_1 = 0; i_1 < len; ++i_1) {
+                        var child = navigateChildren[i_1];
+                        if (child instanceof fgui.GButton)
+                            child.navigate = false;
+                    }
+                    navigateChildren.length = 0;
+                    this.currentNavigate = null;
+                    var cnt = g._children.length;
+                    for (var i_2 = 0; i_2 < cnt; ++i_2) {
+                        var child = g._children[i_2];
+                        if (child.canNavigate && child.visible && child.enabled)
+                            navigateChildren.push(child);
+                        if (child instanceof fgui.GComponent)
+                            navigateChildren.push.apply(navigateChildren, child.searchNavigateChildren());
+                    }
+                    if (navigateChildren.length > 0)
+                        this.currentNavigate = navigateChildren[0];
+                    break;
+                }
+            }
         };
         GRoot.contentScaleLevel = 0;
         return GRoot;
@@ -16151,6 +16329,12 @@ window.__extends = (this && this.__extends) || (function () {
         Event.ROLL_OVER = "fui_roll_over";
         Event.ROLL_OUT = "fui_roll_out";
         Event.MOUSE_WHEEL = "fui_mouse_wheel";
+        Event.KEY_LEFT = "fui_key_left";
+        Event.KEY_RIGHT = "fui_key_right";
+        Event.KEY_UP = "fui_key_up";
+        Event.KEY_DOWN = "fui_key_down";
+        Event.KEY_BACK = "fui_key_back";
+        Event.KEY_ENTER = "fui_key_enter";
         Event.DISPLAY = "fui_display";
         Event.UNDISPLAY = "fui_undisplay";
         Event.GEAR_STOP = "fui_gear_stop";

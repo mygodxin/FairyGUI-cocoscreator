@@ -1250,6 +1250,20 @@ namespace fgui {
             for (let i: number = 0; i < cnt; ++i)
                 this._transitions[i].onDisable();
         }
+
+        public searchNavigateChildren(): GObject[] {
+            let len = this._children.length;
+            let navigateChildren: GObject[] = [];
+            for (let i = 0; i < len; i++) {
+                let obj = this._children[i];
+                if (obj.canNavigate && obj.visible && obj.enabled) {
+                    navigateChildren.push(obj);
+                }
+                if (obj instanceof GComponent)
+                    navigateChildren.push(...obj.searchNavigateChildren());
+            }
+            return navigateChildren;
+        }
     }
 
     var s_vec2: cc.Vec2 = new cc.Vec2();
