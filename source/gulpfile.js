@@ -27,9 +27,15 @@ gulp.task("copy", () => {
         .pipe(gulp.dest('../demo/assets/Script/Lib/'))
 });
 
+gulp.task('copyLib', () => {
+    return gulp.src('bin/**/*')
+        .pipe(gulp.dest('D:/WorkProject/lewogames/assets/Script/lib/_fgui/'))
+});
+
 gulp.task('build', gulp.series(
     gulp.parallel('buildJs'),
     gulp.parallel('buildDts'),
-    gulp.parallel('copy')
+    gulp.parallel('copy'),
+    gulp.parallel('copyLib')
 )
 )
