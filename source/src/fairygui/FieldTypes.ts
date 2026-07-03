@@ -178,4 +178,13 @@ namespace fgui {
         FontSize,
         Selected
     }
+
+    // navigate
+    export enum Direction {
+        Up = 1,
+        Down = 5,
+        Left = 7,
+        Right = 3,
+        None = 0
+    }
 } 

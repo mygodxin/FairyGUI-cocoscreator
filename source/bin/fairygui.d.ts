@@ -239,6 +239,13 @@ declare namespace fgui {
         FontSize = 8,
         Selected = 9
     }
+    enum Direction {
+        Up = 1,
+        Down = 5,
+        Left = 7,
+        Right = 3,
+        None = 0
+    }
 }
 declare namespace fgui {
     class GObject {
@@ -902,7 +909,7 @@ declare namespace fgui {
         selectAll(): void;
         selectNone(): void;
         selectReverse(): void;
-        handleArrowKey(dir: number): void;
+        handleArrowKey(dir: number, forceIndex?: number): void;
         private onClickItem;
         protected dispatchItemEvent(item: GObject, evt: Event): void;
         private setSelectionOnEvent;
@@ -1323,9 +1330,10 @@ declare namespace fgui {
         private onWinResize;
         handlePositionChanged(): void;
         private updateContentScaleLevel;
-        private onKeyDown;
+        private _onKeyDown;
+        onKeyDown(keyCode: number): void;
         private doKeyClick;
-        private doKeyExit;
+        private setCurrentNavigate;
         get currentNavigate(): GObject;
         set currentNavigate(value: GObject);
         findSelectable(dir: cc.Vec2): fgui.GObject;
@@ -1333,7 +1341,7 @@ declare namespace fgui {
         findSelectableOnDown(): GObject;
         findSelectableOnLeft(): GObject;
         findSelectableOnRight(): GObject;
-        resetNavigateChildren(): void;
+        resetNavigateChildren(forceNavigate?: boolean): void;
     }
 }
 declare namespace fgui {

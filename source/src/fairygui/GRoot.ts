@@ -52,7 +52,7 @@ namespace fgui {
             this._inputProcessor = this.node.addComponent(InputProcessor);
             this._inputProcessor._captureCallback = this.onTouchBegin_1;
             // navigate
-            cc.systemEvent.on('keydown', this.onKeyDown, this);
+            cc.systemEvent.on('keydown', this._onKeyDown, this);
 
             if (CC_EDITOR) {
                 (<any>cc).engine.on('design-resolution-changed', this._thisOnResized);
@@ -439,28 +439,31 @@ namespace fgui {
         }
 
         // navigate
-        private onKeyDown(event: cc.Event.EventKeyboard) {
-            let keyCode = event.keyCode;
+        private _onKeyDown(event: cc.Event.EventKeyboard) {
+            this.onKeyDown(event.keyCode);
+        }
+
+        public onKeyDown(keyCode: number) {
             switch (keyCode) {
                 case cc.macro.KEY.up: //38
                 case cc.macro.KEY.w: //87
                 case 19:// 通常代表游戏手柄的"上"方向键或"Y"按钮
-                    this.currentNavigate = this.findSelectableOnUp();
+                    this.setCurrentNavigate(this.findSelectableOnUp(), Direction.Up);
                     break;
                 case cc.macro.KEY.down: //40
                 case cc.macro.KEY.s: //83
                 case 20:// 通常代表游戏手柄的"下"方向键或"A"按钮
-                    this.currentNavigate = this.findSelectableOnDown();
+                    this.setCurrentNavigate(this.findSelectableOnDown(), Direction.Down);
                     break;
                 case cc.macro.KEY.left://37
                 case cc.macro.KEY.a: //65
                 case 21:// 通常代表游戏手柄的某个功能键，可能是"左 bumper"或特定功能键
-                    this.currentNavigate = this.findSelectableOnLeft();
+                    this.setCurrentNavigate(this.findSelectableOnLeft(), Direction.Left);
                     break;
                 case cc.macro.KEY.right: //39
                 case cc.macro.KEY.d: //68
                 case 22:// 通常代表游戏手柄的"右 bumper"或特定功能键
-                    this.currentNavigate = this.findSelectableOnRight();
+                    this.setCurrentNavigate(this.findSelectableOnRight(), Direction.Right);
                     break;
                 case cc.macro.KEY.enter: //13
                 case 23:
@@ -470,7 +473,6 @@ namespace fgui {
                 case cc.macro.KEY.back: // 6
                 case cc.macro.KEY.escape: // 27
                 case 4://back ecs触发当前焦点按钮的点击事件
-                    this.doKeyExit();
                     break;
                 case cc.macro.KEY.f1:
                     break;
@@ -482,10 +484,27 @@ namespace fgui {
         }
 
         private doKeyClick() {
-
+            if (this.currentNavigate instanceof GButton) {
+                this.currentNavigate.fireClick();
+            }
         }
 
-        private doKeyExit() {
+        private setCurrentNavigate(value: GObject, dir: Direction = Direction.None) {
+
+            // 检查当前导航父节点有GList
+            let parent = value?.parent;
+            var current = value;
+            while (parent) {
+                if (parent instanceof GList) {
+                    var index: number = parent.childIndexToItemIndex(parent.getChildIndex(current));
+                    parent.selectedIndex = index;
+                    parent.scrollToView(index);
+                    break;
+                }
+                current = parent;
+                parent = parent.parent;
+            }
+            this.currentNavigate = value;
         }
 
         public get currentNavigate(): GObject {
@@ -521,7 +540,7 @@ namespace fgui {
             let maxFurthestScore = -Infinity;
 
             // 检查是否启用循环导航
-            let wantsWrapAround = true;
+            let wantsWrapAround = false;
 
             for (const sel of this._navigateChildren) {
                 if (sel === current) continue;
@@ -577,7 +596,7 @@ namespace fgui {
         }
 
         /** 重置可导航项 */
-        public resetNavigateChildren(): void {
+        public resetNavigateChildren(forceNavigate: boolean = true): void {
 
             var numChildren: number = this.numChildren;
 
@@ -606,8 +625,8 @@ namespace fgui {
                             navigateChildren.push(...child.searchNavigateChildren());
                     }
 
-                    if (navigateChildren.length > 0)
-                        this.currentNavigate = navigateChildren[0];
+                    if (forceNavigate && navigateChildren.length > 0)
+                        this.setCurrentNavigate(navigateChildren[0], Direction.None);
 
                     break;
                 }

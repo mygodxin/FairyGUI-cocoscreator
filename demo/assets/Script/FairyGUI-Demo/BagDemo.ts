@@ -44,7 +44,7 @@ class BagWindow extends fgui.Window {
 
     private renderListItem(index: number, obj: fgui.GObject): void {
         obj.icon = "Icons/i" + Math.floor(Math.random() * 10);
-        obj.text = "" + Math.floor(Math.random() * 100);
+        obj.text = index + "";//"" + Math.floor(Math.random() * 100);
     }
 
     private onClickItem(item: fgui.GObject): void {

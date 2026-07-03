@@ -734,6 +734,14 @@ window.__extends = (this && this.__extends) || (function () {
         ObjectPropID[ObjectPropID["FontSize"] = 8] = "FontSize";
         ObjectPropID[ObjectPropID["Selected"] = 9] = "Selected";
     })(ObjectPropID = fgui.ObjectPropID || (fgui.ObjectPropID = {}));
+    var Direction;
+    (function (Direction) {
+        Direction[Direction["Up"] = 1] = "Up";
+        Direction[Direction["Down"] = 5] = "Down";
+        Direction[Direction["Left"] = 7] = "Left";
+        Direction[Direction["Right"] = 3] = "Right";
+        Direction[Direction["None"] = 0] = "None";
+    })(Direction = fgui.Direction || (fgui.Direction = {}));
 })(fgui || (fgui = {}));
 
 (function (fgui) {
@@ -5437,8 +5445,9 @@ window.__extends = (this && this.__extends) || (function () {
             if (last != -1)
                 this.updateSelectionController(last);
         };
-        GList.prototype.handleArrowKey = function (dir) {
-            var index = this.selectedIndex;
+        GList.prototype.handleArrowKey = function (dir, forceIndex) {
+            if (forceIndex === void 0) { forceIndex = -1; }
+            var index = forceIndex != -1 ? forceIndex : this.selectedIndex;
             if (index == -1)
                 return;
             switch (dir) {
@@ -6323,6 +6332,7 @@ window.__extends = (this && this.__extends) || (function () {
             }
             if (deltaSize != 0 || firstItemDeltaSize != 0)
                 this._scrollPane.changeContentSizeOnScrolling(0, deltaSize, 0, firstItemDeltaSize);
+            fgui.GRoot.inst.resetNavigateChildren(false);
             if (curIndex > 0 && this.numChildren > 0 && this._container.y <= 0 && this.getChildAt(0).y > -this._container.y)
                 return true;
             else
@@ -6456,6 +6466,7 @@ window.__extends = (this && this.__extends) || (function () {
             }
             if (deltaSize != 0 || firstItemDeltaSize != 0)
                 this._scrollPane.changeContentSizeOnScrolling(deltaSize, 0, firstItemDeltaSize, 0);
+            fgui.GRoot.inst.resetNavigateChildren(false);
             if (curIndex > 0 && this.numChildren > 0 && this._container.x <= 0 && this.getChildAt(0).x > -this._container.x)
                 return true;
             else
@@ -6594,6 +6605,7 @@ window.__extends = (this && this.__extends) || (function () {
                     ii.obj = null;
                 }
             }
+            fgui.GRoot.inst.resetNavigateChildren(false);
         };
         GList.prototype.handleArchOrder1 = function () {
             if (this._childrenRenderOrder == fgui.ChildrenRenderOrder.Arch) {
@@ -9164,7 +9176,7 @@ window.__extends = (this && this.__extends) || (function () {
             _this._thisOnResized = _this.onWinResize.bind(_this);
             _this._inputProcessor = _this.node.addComponent(fgui.InputProcessor);
             _this._inputProcessor._captureCallback = _this.onTouchBegin_1;
-            cc.systemEvent.on('keydown', _this.onKeyDown, _this);
+            cc.systemEvent.on('keydown', _this._onKeyDown, _this);
             if (CC_EDITOR) {
                 cc.engine.on('design-resolution-changed', _this._thisOnResized);
             }
@@ -9527,28 +9539,30 @@ window.__extends = (this && this.__extends) || (function () {
             else
                 GRoot.contentScaleLevel = 0;
         };
-        GRoot.prototype.onKeyDown = function (event) {
-            var keyCode = event.keyCode;
+        GRoot.prototype._onKeyDown = function (event) {
+            this.onKeyDown(event.keyCode);
+        };
+        GRoot.prototype.onKeyDown = function (keyCode) {
             switch (keyCode) {
                 case cc.macro.KEY.up:
                 case cc.macro.KEY.w:
                 case 19:
-                    this.currentNavigate = this.findSelectableOnUp();
+                    this.setCurrentNavigate(this.findSelectableOnUp(), fgui.Direction.Up);
                     break;
                 case cc.macro.KEY.down:
                 case cc.macro.KEY.s:
                 case 20:
-                    this.currentNavigate = this.findSelectableOnDown();
+                    this.setCurrentNavigate(this.findSelectableOnDown(), fgui.Direction.Down);
                     break;
                 case cc.macro.KEY.left:
                 case cc.macro.KEY.a:
                 case 21:
-                    this.currentNavigate = this.findSelectableOnLeft();
+                    this.setCurrentNavigate(this.findSelectableOnLeft(), fgui.Direction.Left);
                     break;
                 case cc.macro.KEY.right:
                 case cc.macro.KEY.d:
                 case 22:
-                    this.currentNavigate = this.findSelectableOnRight();
+                    this.setCurrentNavigate(this.findSelectableOnRight(), fgui.Direction.Right);
                     break;
                 case cc.macro.KEY.enter:
                 case 23:
@@ -9557,7 +9571,6 @@ window.__extends = (this && this.__extends) || (function () {
                 case cc.macro.KEY.back:
                 case cc.macro.KEY.escape:
                 case 4:
-                    this.doKeyExit();
                     break;
                 case cc.macro.KEY.f1:
                     break;
@@ -9567,8 +9580,25 @@ window.__extends = (this && this.__extends) || (function () {
             }
         };
         GRoot.prototype.doKeyClick = function () {
+            if (this.currentNavigate instanceof fgui.GButton) {
+                this.currentNavigate.fireClick();
+            }
         };
-        GRoot.prototype.doKeyExit = function () {
+        GRoot.prototype.setCurrentNavigate = function (value, dir) {
+            if (dir === void 0) { dir = fgui.Direction.None; }
+            var parent = value === null || value === void 0 ? void 0 : value.parent;
+            var current = value;
+            while (parent) {
+                if (parent instanceof fgui.GList) {
+                    var index = parent.childIndexToItemIndex(parent.getChildIndex(current));
+                    parent.selectedIndex = index;
+                    parent.scrollToView(index);
+                    break;
+                }
+                current = parent;
+                parent = parent.parent;
+            }
+            this.currentNavigate = value;
         };
         Object.defineProperty(GRoot.prototype, "currentNavigate", {
             get: function () {
@@ -9599,7 +9629,7 @@ window.__extends = (this && this.__extends) || (function () {
             var bestFurthestPick = null;
             var maxScore = -Infinity;
             var maxFurthestScore = -Infinity;
-            var wantsWrapAround = true;
+            var wantsWrapAround = false;
             for (var _i = 0, _a = this._navigateChildren; _i < _a.length; _i++) {
                 var sel = _a[_i];
                 if (sel === current)
@@ -9642,7 +9672,8 @@ window.__extends = (this && this.__extends) || (function () {
         GRoot.prototype.findSelectableOnRight = function () {
             return this.findSelectable(new cc.Vec2(1, 0));
         };
-        GRoot.prototype.resetNavigateChildren = function () {
+        GRoot.prototype.resetNavigateChildren = function (forceNavigate) {
+            if (forceNavigate === void 0) { forceNavigate = true; }
             var numChildren = this.numChildren;
             for (var i = numChildren - 1; i >= 0; i--) {
                 var g = this.getChildAt(i);
@@ -9664,8 +9695,8 @@ window.__extends = (this && this.__extends) || (function () {
                         if (child instanceof fgui.GComponent)
                             navigateChildren.push.apply(navigateChildren, child.searchNavigateChildren());
                     }
-                    if (navigateChildren.length > 0)
-                        this.currentNavigate = navigateChildren[0];
+                    if (forceNavigate && navigateChildren.length > 0)
+                        this.setCurrentNavigate(navigateChildren[0], fgui.Direction.None);
                     break;
                 }
             }

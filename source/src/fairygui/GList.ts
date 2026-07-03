@@ -488,9 +488,9 @@ namespace fgui {
                 this.updateSelectionController(last);
         }
 
-
-        public handleArrowKey(dir: number): void {
-            var index: number = this.selectedIndex;
+        // navigate 强制用当前导航下标处理
+        public handleArrowKey(dir: number, forceIndex: number = -1): void {
+            var index: number = forceIndex != -1 ? forceIndex : this.selectedIndex;
             if (index == -1)
                 return;
 
@@ -1000,6 +1000,7 @@ namespace fgui {
         }
 
         public set numItems(value: number) {
+
             if (this._virtual) {
                 if (this.itemRenderer == null)
                     throw "Set itemRenderer first!";
@@ -1499,6 +1500,9 @@ namespace fgui {
             if (deltaSize != 0 || firstItemDeltaSize != 0)
                 this._scrollPane.changeContentSizeOnScrolling(0, deltaSize, 0, firstItemDeltaSize);
 
+            // navigate
+            GRoot.inst.resetNavigateChildren(false);
+
             if (curIndex > 0 && this.numChildren > 0 && this._container.y <= 0 && this.getChildAt(0).y > -this._container.y)//最后一页没填满！
                 return true;
             else
@@ -1653,6 +1657,9 @@ namespace fgui {
 
             if (deltaSize != 0 || firstItemDeltaSize != 0)
                 this._scrollPane.changeContentSizeOnScrolling(deltaSize, 0, firstItemDeltaSize, 0);
+
+            // navigate
+            GRoot.inst.resetNavigateChildren(false);
 
             if (curIndex > 0 && this.numChildren > 0 && this._container.x <= 0 && this.getChildAt(0).x > - this._container.x)//最后一页没填满！
                 return true;
@@ -1822,6 +1829,9 @@ namespace fgui {
                     ii.obj = null;
                 }
             }
+
+            // navigate
+            GRoot.inst.resetNavigateChildren(false);
         }
 
         private handleArchOrder1(): void {
