@@ -56,6 +56,7 @@ namespace fgui {
 
         private _hitTestPt?: cc.Vec2;
 
+        // navigate
         /** 是否可导航到该对象 */
         public canNavigate: boolean = false;
 
@@ -1207,8 +1208,6 @@ namespace fgui {
             }
         }
         //-------------------------------------------------------------------
-
-
     }
 
     var sGlobalDragStart: cc.Vec2 = new cc.Vec2();

@@ -24,6 +24,8 @@ namespace fgui {
         public _scrollPane?: ScrollPane;
         public _alignOffset: cc.Vec2;
         public _customMask?: cc.Mask;
+        private _navigate: boolean;
+        private _navigateController: Controller;
 
         public constructor() {
             super();
@@ -1197,6 +1199,8 @@ namespace fgui {
             this.buildNativeDisplayList();
             this.setBoundsChangedFlag();
 
+                        this._navigateController = this.getController("nav");
+
             if (contentItem.objectType != ObjectType.Component)
                 this.constructExtension(buffer);
 
@@ -1263,6 +1267,16 @@ namespace fgui {
                     navigateChildren.push(...obj.searchNavigateChildren());
             }
             return navigateChildren;
+        }
+
+        // navigate
+        public set navigate(val: boolean) {
+            this._navigate = val;
+            if (this._navigateController && this._navigateController.pageCount == 2)
+                this._navigateController.selectedIndex = val ? 1 : 0;
+        }
+        public get navigate(): boolean {
+            return this._navigate;
         }
     }
 

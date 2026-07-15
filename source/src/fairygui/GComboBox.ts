@@ -31,6 +31,8 @@ namespace fgui {
             this._selectedIndex = -1;
             this._items = [];
             this._values = [];
+
+            this.canNavigate = true;
         }
 
         public get text(): string {
@@ -399,8 +401,11 @@ namespace fgui {
             this._list.ensureBoundsCorrect();
 
             this.root.togglePopup(this.dropdown, this, this._popupDirection);
-            if (this.dropdown.parent)
+            if (this.dropdown.parent) {
                 this.setState(GButton.DOWN);
+                var navigates: GObject[] = [this, ...this._list._children];
+                GRoot.inst.lockNavigate(navigates);
+            }
         }
 
         private onPopupClosed(): void {
@@ -408,6 +413,10 @@ namespace fgui {
                 this.setState(GButton.OVER);
             else
                 this.setState(GButton.UP);
+
+            // navigate 可导航项恢复
+            GRoot.inst.unlockNavigate();
+            GRoot.inst.currentNavigate = this;
         }
 
         private onClickItem(itemObject): void {

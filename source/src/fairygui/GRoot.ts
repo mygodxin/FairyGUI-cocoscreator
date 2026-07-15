@@ -15,6 +15,8 @@ namespace fgui {
         private _thisOnResized: Function;
         // navigate 可导航的子项
         private _navigateChildren: Array<GObject> = new Array<GObject>();
+        private _lastNavigateChildren: Array<GObject> = new Array<GObject>();
+        private _isNavigateLocked: boolean = false;
         private _currentNavigate: GObject = null;
 
         private static _inst: GRoot;
@@ -484,9 +486,7 @@ namespace fgui {
         }
 
         private doKeyClick() {
-            if (this.currentNavigate instanceof GButton) {
-                this.currentNavigate.fireClick();
-            }
+            this.inputProcessor.simulateClick(this.currentNavigate);
         }
 
         private setCurrentNavigate(value: GObject, dir: Direction = Direction.None) {
@@ -518,7 +518,7 @@ namespace fgui {
             let len = navigateChildren.length;
             for (let i: number = 0; i < len; ++i) {
                 let child: GObject = navigateChildren[i];
-                if (child instanceof GButton)
+                if (child instanceof GComponent)
                     child.navigate = value == child;
             }
         }
@@ -568,8 +568,13 @@ namespace fgui {
                 if (dot <= 0) continue;
 
                 // 方向一致性越高且距离越近，分数越高
-                const score = dot / myVector.magSqr();
+                let score = dot / myVector.magSqr();
 
+                // 对 GComboBox 类型应用惩罚系数，降低其优先级
+                // 当下拉框弹出时，优先选择列表项而不是下拉框本身
+                if (this._isNavigateLocked && sel instanceof GComboBox) {
+                    score *= 0.1; // 降低 GComboBox 的优先级
+                }
                 if (score > maxScore) {
                     maxScore = score;
                     bestPick = sel;
@@ -609,7 +614,7 @@ namespace fgui {
                     let len = navigateChildren.length;
                     for (let i: number = 0; i < len; ++i) {
                         let child: GObject = navigateChildren[i];
-                        if (child instanceof GButton)
+                        if (child instanceof GButton || child instanceof GComboBox)
                             child.navigate = false;
                     }
                     navigateChildren.length = 0;
@@ -631,6 +636,26 @@ namespace fgui {
                     break;
                 }
             }
+        }
+
+        /** 设置可导航项 */
+        public lockNavigate(navigateChildren: Array<GObject>): void {
+            this._isNavigateLocked = true;
+            this._lastNavigateChildren = this._navigateChildren;
+            this._navigateChildren = navigateChildren;
+        }
+        /** 取消可导航项 */
+        public unlockNavigate(): void {
+            this._isNavigateLocked = false;
+            var navigateChildren = this._navigateChildren;
+
+            let len = navigateChildren.length;
+            for (let i: number = 0; i < len; ++i) {
+                let child: GObject = navigateChildren[i];
+                if (child instanceof GComponent)
+                    child.navigate = false;
+            }
+            this.lockNavigate(this._lastNavigateChildren);
         }
     }
 }

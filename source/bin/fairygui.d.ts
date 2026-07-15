@@ -482,6 +482,8 @@ declare namespace fgui {
         _scrollPane?: ScrollPane;
         _alignOffset: cc.Vec2;
         _customMask?: cc.Mask;
+        private _navigate;
+        private _navigateController;
         constructor();
         dispose(): void;
         get displayListContainer(): cc.Node;
@@ -562,6 +564,8 @@ declare namespace fgui {
         protected onEnable(): void;
         protected onDisable(): void;
         searchNavigateChildren(): GObject[];
+        set navigate(val: boolean);
+        get navigate(): boolean;
     }
 }
 declare namespace fgui {
@@ -577,8 +581,6 @@ declare namespace fgui {
         private _sound;
         private _soundVolumeScale;
         private _buttonController;
-        private _navigate;
-        private _navigateController;
         private _relatedController?;
         private _relatedPageId;
         private _changeStateOnClick;
@@ -616,8 +618,6 @@ declare namespace fgui {
         set soundVolumeScale(value: number);
         set selected(val: boolean);
         get selected(): boolean;
-        set navigate(val: boolean);
-        get navigate(): boolean;
         get mode(): ButtonMode;
         set mode(value: ButtonMode);
         get relatedController(): Controller;
@@ -1292,6 +1292,8 @@ declare namespace fgui {
         private _inputProcessor;
         private _thisOnResized;
         private _navigateChildren;
+        private _lastNavigateChildren;
+        private _isNavigateLocked;
         private _currentNavigate;
         private static _inst;
         static get inst(): GRoot;
@@ -1342,6 +1344,8 @@ declare namespace fgui {
         findSelectableOnLeft(): GObject;
         findSelectableOnRight(): GObject;
         resetNavigateChildren(forceNavigate?: boolean): void;
+        lockNavigate(navigateChildren: Array<GObject>): void;
+        unlockNavigate(): void;
     }
 }
 declare namespace fgui {

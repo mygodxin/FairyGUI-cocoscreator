@@ -15,6 +15,15 @@ window.__extends = (this && this.__extends) || (function () {
         d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
     };
 })();
+var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
+    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
+        if (ar || !(i in from)) {
+            if (!ar) ar = Array.prototype.slice.call(from, 0, i);
+            ar[i] = from[i];
+        }
+    }
+    return to.concat(ar || Array.prototype.slice.call(from));
+};
 
 (function (fgui) {
     var AsyncOperation = (function () {
@@ -3003,6 +3012,7 @@ window.__extends = (this && this.__extends) || (function () {
             this._underConstruct = false;
             this.buildNativeDisplayList();
             this.setBoundsChangedFlag();
+            this._navigateController = this.getController("nav");
             if (contentItem.objectType != fgui.ObjectType.Component)
                 this.constructExtension(buffer);
             this.onConstruct();
@@ -3059,6 +3069,18 @@ window.__extends = (this && this.__extends) || (function () {
             }
             return navigateChildren;
         };
+        Object.defineProperty(GComponent.prototype, "navigate", {
+            get: function () {
+                return this._navigate;
+            },
+            set: function (val) {
+                this._navigate = val;
+                if (this._navigateController && this._navigateController.pageCount == 2)
+                    this._navigateController.selectedIndex = val ? 1 : 0;
+            },
+            enumerable: false,
+            configurable: true
+        });
         return GComponent;
     }(fgui.GObject));
     fgui.GComponent = GComponent;
@@ -3225,18 +3247,6 @@ window.__extends = (this && this.__extends) || (function () {
                             this._relatedController.oppositePageId = this._relatedPageId;
                     }
                 }
-            },
-            enumerable: false,
-            configurable: true
-        });
-        Object.defineProperty(GButton.prototype, "navigate", {
-            get: function () {
-                return this._navigate;
-            },
-            set: function (val) {
-                this._navigate = val;
-                if (this._navigateController && this._navigateController.pageCount == 2)
-                    this._navigateController.selectedIndex = val ? 1 : 0;
             },
             enumerable: false,
             configurable: true
@@ -3435,7 +3445,6 @@ window.__extends = (this && this.__extends) || (function () {
             if (this._downEffect == 2)
                 this.setPivot(0.5, 0.5, this.pivotAsAnchor);
             this._buttonController = this.getController("button");
-            this._navigateController = this.getController("nav");
             this._titleObject = this.getChild("title");
             this._iconObject = this.getChild("icon");
             if (this._titleObject)
@@ -3600,6 +3609,7 @@ window.__extends = (this && this.__extends) || (function () {
             _this._selectedIndex = -1;
             _this._items = [];
             _this._values = [];
+            _this.canNavigate = true;
             return _this;
         }
         Object.defineProperty(GComboBox.prototype, "text", {
@@ -3961,14 +3971,19 @@ window.__extends = (this && this.__extends) || (function () {
             this.dropdown.width = this.width;
             this._list.ensureBoundsCorrect();
             this.root.togglePopup(this.dropdown, this, this._popupDirection);
-            if (this.dropdown.parent)
+            if (this.dropdown.parent) {
                 this.setState(fgui.GButton.DOWN);
+                var navigates = __spreadArray([this], this._list._children, true);
+                fgui.GRoot.inst.lockNavigate(navigates);
+            }
         };
         GComboBox.prototype.onPopupClosed = function () {
             if (this._over)
                 this.setState(fgui.GButton.OVER);
             else
                 this.setState(fgui.GButton.UP);
+            fgui.GRoot.inst.unlockNavigate();
+            fgui.GRoot.inst.currentNavigate = this;
         };
         GComboBox.prototype.onClickItem = function (itemObject) {
             var _t = this;
@@ -9163,6 +9178,8 @@ window.__extends = (this && this.__extends) || (function () {
         function GRoot() {
             var _this = _super.call(this) || this;
             _this._navigateChildren = new Array();
+            _this._lastNavigateChildren = new Array();
+            _this._isNavigateLocked = false;
             _this._currentNavigate = null;
             _this._node.name = "GRoot";
             _this.opaque = false;
@@ -9580,9 +9597,7 @@ window.__extends = (this && this.__extends) || (function () {
             }
         };
         GRoot.prototype.doKeyClick = function () {
-            if (this.currentNavigate instanceof fgui.GButton) {
-                this.currentNavigate.fireClick();
-            }
+            this.inputProcessor.simulateClick(this.currentNavigate);
         };
         GRoot.prototype.setCurrentNavigate = function (value, dir) {
             if (dir === void 0) { dir = fgui.Direction.None; }
@@ -9610,7 +9625,7 @@ window.__extends = (this && this.__extends) || (function () {
                 var len = navigateChildren.length;
                 for (var i = 0; i < len; ++i) {
                     var child = navigateChildren[i];
-                    if (child instanceof fgui.GButton)
+                    if (child instanceof fgui.GComponent)
                         child.navigate = value == child;
                 }
             },
@@ -9651,6 +9666,9 @@ window.__extends = (this && this.__extends) || (function () {
                 if (dot <= 0)
                     continue;
                 var score = dot / myVector.magSqr();
+                if (this._isNavigateLocked && sel instanceof fgui.GComboBox) {
+                    score *= 0.1;
+                }
                 if (score > maxScore) {
                     maxScore = score;
                     bestPick = sel;
@@ -9682,7 +9700,7 @@ window.__extends = (this && this.__extends) || (function () {
                     var len = navigateChildren.length;
                     for (var i_1 = 0; i_1 < len; ++i_1) {
                         var child = navigateChildren[i_1];
-                        if (child instanceof fgui.GButton)
+                        if (child instanceof fgui.GButton || child instanceof fgui.GComboBox)
                             child.navigate = false;
                     }
                     navigateChildren.length = 0;
@@ -9700,6 +9718,22 @@ window.__extends = (this && this.__extends) || (function () {
                     break;
                 }
             }
+        };
+        GRoot.prototype.lockNavigate = function (navigateChildren) {
+            this._isNavigateLocked = true;
+            this._lastNavigateChildren = this._navigateChildren;
+            this._navigateChildren = navigateChildren;
+        };
+        GRoot.prototype.unlockNavigate = function () {
+            this._isNavigateLocked = false;
+            var navigateChildren = this._navigateChildren;
+            var len = navigateChildren.length;
+            for (var i = 0; i < len; ++i) {
+                var child = navigateChildren[i];
+                if (child instanceof fgui.GComponent)
+                    child.navigate = false;
+            }
+            this.lockNavigate(this._lastNavigateChildren);
         };
         GRoot.contentScaleLevel = 0;
         return GRoot;
