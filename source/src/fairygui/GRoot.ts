@@ -499,7 +499,7 @@ namespace fgui {
                     var index: number = parent.childIndexToItemIndex(parent.getChildIndex(current));
                     parent.selectedIndex = index;
                     parent.scrollToView(index);
-                    break;
+                    // break;
                 }
                 current = parent;
                 parent = parent.parent;

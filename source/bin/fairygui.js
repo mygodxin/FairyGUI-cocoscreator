@@ -9608,7 +9608,6 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
                     var index = parent.childIndexToItemIndex(parent.getChildIndex(current));
                     parent.selectedIndex = index;
                     parent.scrollToView(index);
-                    break;
                 }
                 current = parent;
                 parent = parent.parent;
