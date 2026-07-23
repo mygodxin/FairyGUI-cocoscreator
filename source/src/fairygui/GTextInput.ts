@@ -11,6 +11,9 @@ namespace fgui {
 
             this._node.name = "GTextInput";
             this._touchDisabled = false;
+
+            // navigate
+            this.canNavigate = true;
         }
 
         protected createRenderer() {

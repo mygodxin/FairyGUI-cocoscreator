@@ -1282,6 +1282,7 @@ declare namespace fgui {
 declare namespace fgui {
     class GRoot extends GComponent {
         static contentScaleLevel: number;
+        canNavigate: boolean;
         private _modalLayer;
         private _popupStack;
         private _justClosedPopups;

@@ -9177,6 +9177,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         __extends(GRoot, _super);
         function GRoot() {
             var _this = _super.call(this) || this;
+            _this.canNavigate = false;
             _this._navigateChildren = new Array();
             _this._lastNavigateChildren = new Array();
             _this._isNavigateLocked = false;
@@ -9601,17 +9602,6 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         };
         GRoot.prototype.setCurrentNavigate = function (value, dir) {
             if (dir === void 0) { dir = fgui.Direction.None; }
-            var parent = value === null || value === void 0 ? void 0 : value.parent;
-            var current = value;
-            while (parent) {
-                if (parent instanceof fgui.GList) {
-                    var index = parent.childIndexToItemIndex(parent.getChildIndex(current));
-                    parent.selectedIndex = index;
-                    parent.scrollToView(index);
-                }
-                current = parent;
-                parent = parent.parent;
-            }
             this.currentNavigate = value;
         };
         Object.defineProperty(GRoot.prototype, "currentNavigate", {
@@ -9619,13 +9609,30 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
                 return this._currentNavigate;
             },
             set: function (value) {
+                var parent = value === null || value === void 0 ? void 0 : value.parent;
+                var current = value;
+                while (parent) {
+                    if (parent instanceof fgui.GList) {
+                        var index = parent.childIndexToItemIndex(parent.getChildIndex(current));
+                        parent.selectedIndex = index;
+                        parent.scrollToView(index);
+                    }
+                    if (parent instanceof fgui.GComponent && parent.scrollPane) {
+                        parent.scrollPane.scrollToView(current, false, true);
+                    }
+                    current = parent;
+                    parent = parent.parent;
+                }
                 this._currentNavigate = value;
                 var navigateChildren = this._navigateChildren;
                 var len = navigateChildren.length;
                 for (var i = 0; i < len; ++i) {
                     var child = navigateChildren[i];
+                    var isSelected = value == child;
                     if (child instanceof fgui.GComponent)
-                        child.navigate = value == child;
+                        child.navigate = isSelected;
+                    if (child instanceof fgui.GButton)
+                        child.selected = isSelected;
                 }
             },
             enumerable: false,
@@ -9691,6 +9698,8 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         };
         GRoot.prototype.resetNavigateChildren = function (forceNavigate) {
             if (forceNavigate === void 0) { forceNavigate = true; }
+            if (!this.canNavigate)
+                return;
             var numChildren = this.numChildren;
             for (var i = numChildren - 1; i >= 0; i--) {
                 var g = this.getChildAt(i);
@@ -9719,6 +9728,8 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
             }
         };
         GRoot.prototype.lockNavigate = function (navigateChildren) {
+            if (!this.canNavigate)
+                return;
             this._isNavigateLocked = true;
             this._lastNavigateChildren = this._navigateChildren;
             this._navigateChildren = navigateChildren;
@@ -10122,6 +10133,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
             var _this = _super.call(this) || this;
             _this._node.name = "GTextInput";
             _this._touchDisabled = false;
+            _this.canNavigate = true;
             return _this;
         }
         GTextInput.prototype.createRenderer = function () {

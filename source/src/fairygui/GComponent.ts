@@ -1199,7 +1199,7 @@ namespace fgui {
             this.buildNativeDisplayList();
             this.setBoundsChangedFlag();
 
-                        this._navigateController = this.getController("nav");
+            this._navigateController = this.getController("nav");
 
             if (contentItem.objectType != ObjectType.Component)
                 this.constructExtension(buffer);

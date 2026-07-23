@@ -3,6 +3,7 @@ namespace fgui {
 
     export class GRoot extends GComponent {
         public static contentScaleLevel: number = 0;
+        public canNavigate: boolean = false;
 
         private _modalLayer: GGraph;
         private _popupStack: Array<GObject>;
@@ -490,7 +491,13 @@ namespace fgui {
         }
 
         private setCurrentNavigate(value: GObject, dir: Direction = Direction.None) {
+            this.currentNavigate = value;
+        }
 
+        public get currentNavigate(): GObject {
+            return this._currentNavigate;
+        }
+        public set currentNavigate(value: GObject) {
             // 检查当前导航父节点有GList
             let parent = value?.parent;
             var current = value;
@@ -501,16 +508,13 @@ namespace fgui {
                     parent.scrollToView(index);
                     // break;
                 }
+                if (parent instanceof GComponent && parent.scrollPane) {
+                    parent.scrollPane.scrollToView(current, false, true);
+                }
                 current = parent;
                 parent = parent.parent;
             }
-            this.currentNavigate = value;
-        }
 
-        public get currentNavigate(): GObject {
-            return this._currentNavigate;
-        }
-        public set currentNavigate(value: GObject) {
             this._currentNavigate = value;
 
             var navigateChildren = this._navigateChildren;
@@ -518,8 +522,11 @@ namespace fgui {
             let len = navigateChildren.length;
             for (let i: number = 0; i < len; ++i) {
                 let child: GObject = navigateChildren[i];
+                var isSelected = value == child;
                 if (child instanceof GComponent)
-                    child.navigate = value == child;
+                    child.navigate = isSelected;
+                if (child instanceof GButton)
+                    child.selected = isSelected;
             }
         }
 
@@ -602,6 +609,7 @@ namespace fgui {
 
         /** 重置可导航项 */
         public resetNavigateChildren(forceNavigate: boolean = true): void {
+            if (!this.canNavigate) return;
 
             var numChildren: number = this.numChildren;
 
@@ -640,6 +648,8 @@ namespace fgui {
 
         /** 设置可导航项 */
         public lockNavigate(navigateChildren: Array<GObject>): void {
+            if (!this.canNavigate) return;
+
             this._isNavigateLocked = true;
             this._lastNavigateChildren = this._navigateChildren;
             this._navigateChildren = navigateChildren;
