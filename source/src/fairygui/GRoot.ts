@@ -505,11 +505,11 @@ namespace fgui {
                 if (parent instanceof GList) {
                     var index: number = parent.childIndexToItemIndex(parent.getChildIndex(current));
                     parent.selectedIndex = index;
-                    parent.scrollToView(index);
+                    parent.scrollToView(index, false, false);
                     // break;
                 }
                 if (parent instanceof GComponent && parent.scrollPane) {
-                    parent.scrollPane.scrollToView(current, false, true);
+                    parent.scrollPane.scrollToView(current, false, false);
                 }
                 current = parent;
                 parent = parent.parent;
@@ -574,14 +574,15 @@ namespace fgui {
                 // 跳过方向错误或距离为0的元素
                 if (dot <= 0) continue;
 
-                // 方向一致性越高且距离越近，分数越高
-                let score = dot / myVector.magSqr();
+                // 第一权重：方向一致性（cos值）- 越符合导航方向分数越高
+                let score = dot / myVector.mag();
 
-                // 对 GComboBox 类型应用惩罚系数，降低其优先级
-                // 当下拉框弹出时，优先选择列表项而不是下拉框本身
-                if (this._isNavigateLocked && sel instanceof GComboBox) {
-                    score *= 0.1; // 降低 GComboBox 的优先级
-                }
+                // 第二权重：距离惩罚 - 距离越远分数越低
+                const distancePenalty = 1 / (1 + myVector.mag() * 0.01);
+                score *= distancePenalty;
+
+                // console.log(`元素 ${sel.name} 分数: ${score}, 距离: ${myVector.mag()}, 方向一致性: ${dot}`);
+
                 if (score > maxScore) {
                     maxScore = score;
                     bestPick = sel;

@@ -9615,10 +9615,10 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
                     if (parent instanceof fgui.GList) {
                         var index = parent.childIndexToItemIndex(parent.getChildIndex(current));
                         parent.selectedIndex = index;
-                        parent.scrollToView(index);
+                        parent.scrollToView(index, false, false);
                     }
                     if (parent instanceof fgui.GComponent && parent.scrollPane) {
-                        parent.scrollPane.scrollToView(current, false, true);
+                        parent.scrollPane.scrollToView(current, false, false);
                     }
                     current = parent;
                     parent = parent.parent;
@@ -9671,10 +9671,10 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
                 }
                 if (dot <= 0)
                     continue;
-                var score = dot / myVector.magSqr();
-                if (this._isNavigateLocked && sel instanceof fgui.GComboBox) {
-                    score *= 0.1;
-                }
+                var score = dot / myVector.mag();
+                var distancePenalty = 1 / (1 + myVector.mag() * 0.01);
+                score *= distancePenalty;
+                console.log("\u5143\u7D20 ".concat(sel.name, " \u5206\u6570: ").concat(score, ", \u8DDD\u79BB: ").concat(myVector.mag(), ", \u65B9\u5411\u4E00\u81F4\u6027: ").concat(dot));
                 if (score > maxScore) {
                     maxScore = score;
                     bestPick = sel;
