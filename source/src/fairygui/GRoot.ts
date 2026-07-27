@@ -17,6 +17,7 @@ namespace fgui {
         // navigate 可导航的子项
         private _navigateChildren: Array<GObject> = new Array<GObject>();
         private _lastNavigateChildren: Array<GObject> = new Array<GObject>();
+        private _navigateRecord: Record<string, GObject> = {};
         private _isNavigateLocked: boolean = false;
         private _currentNavigate: GObject = null;
 
@@ -528,6 +529,14 @@ namespace fgui {
                 if (child instanceof GButton)
                     child.selected = isSelected;
             }
+            var topWin = this.getTopWindow();
+            if (topWin) {
+                this._navigateRecord[topWin.name] = value;
+            }
+        }
+
+        public lastNavigateByWin(winName: string): GObject {
+            return this._navigateRecord[winName];
         }
 
         public findSelectable(dir: cc.Vec2): fgui.GObject {

@@ -1294,6 +1294,7 @@ declare namespace fgui {
         private _thisOnResized;
         private _navigateChildren;
         private _lastNavigateChildren;
+        private _navigateRecord;
         private _isNavigateLocked;
         private _currentNavigate;
         private static _inst;
@@ -1339,6 +1340,7 @@ declare namespace fgui {
         private setCurrentNavigate;
         get currentNavigate(): GObject;
         set currentNavigate(value: GObject);
+        lastNavigateByWin(winName: string): GObject;
         findSelectable(dir: cc.Vec2): fgui.GObject;
         findSelectableOnUp(): GObject;
         findSelectableOnDown(): GObject;

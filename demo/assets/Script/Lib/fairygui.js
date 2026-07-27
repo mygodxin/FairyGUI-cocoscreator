@@ -9180,6 +9180,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
             _this.canNavigate = false;
             _this._navigateChildren = new Array();
             _this._lastNavigateChildren = new Array();
+            _this._navigateRecord = {};
             _this._isNavigateLocked = false;
             _this._currentNavigate = null;
             _this._node.name = "GRoot";
@@ -9634,10 +9635,17 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
                     if (child instanceof fgui.GButton)
                         child.selected = isSelected;
                 }
+                var topWin = this.getTopWindow();
+                if (topWin) {
+                    this._navigateRecord[topWin.name] = value;
+                }
             },
             enumerable: false,
             configurable: true
         });
+        GRoot.prototype.lastNavigateByWin = function (winName) {
+            return this._navigateRecord[winName];
+        };
         GRoot.prototype.findSelectable = function (dir) {
             var current = this.currentNavigate;
             if (!current || this._navigateChildren.length === 0)
