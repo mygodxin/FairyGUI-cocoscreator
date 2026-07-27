@@ -9674,7 +9674,6 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
                 var score = dot / myVector.mag();
                 var distancePenalty = 1 / (1 + myVector.mag() * 0.01);
                 score *= distancePenalty;
-                console.log("\u5143\u7D20 ".concat(sel.name, " \u5206\u6570: ").concat(score, ", \u8DDD\u79BB: ").concat(myVector.mag(), ", \u65B9\u5411\u4E00\u81F4\u6027: ").concat(dot));
                 if (score > maxScore) {
                     maxScore = score;
                     bestPick = sel;
