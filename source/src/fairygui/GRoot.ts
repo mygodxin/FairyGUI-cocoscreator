@@ -529,6 +529,7 @@ namespace fgui {
                 if (child instanceof GButton)
                     child.selected = isSelected;
             }
+            // console.log("导航:", value != null ? value.name : "null");
             var topWin = this.getTopWindow();
             if (topWin) {
                 this._navigateRecord[topWin.name] = value;
@@ -540,68 +541,130 @@ namespace fgui {
         }
 
         public findSelectable(dir: cc.Vec2): fgui.GObject {
-            var current = this.currentNavigate;
+            if (!this.canNavigate) return null;
+
+            const current = this.currentNavigate;
             if (!current || this._navigateChildren.length === 0) return current;
 
             dir = dir.normalize();
+            // FairyGUI屏幕坐标系：左上角(0,0)，Y轴向下为正，X轴向右为正
+            // cc.Vec2.UP=(0,1)在Cocos世界坐标中Y向上，翻转适配屏幕坐标
             dir.y = -dir.y;
 
-            // 计算当前对象的中心点（而不是左上角）
-            const currentRect = current.localToGlobalRect(0, 0, current._width, current._height);
-            const startPos = cc.v2(currentRect.x + currentRect.width * 0.5, currentRect.y + currentRect.height * 0.5);
+            const curRect = current.localToGlobalRect(0, 0, current._width, current._height);
+            const curLeft = curRect.x;
+            const curRight = curRect.x + curRect.width;
+            const curTop = curRect.y;
+            const curBottom = curRect.y + curRect.height;
 
-            let bestPick: fgui.GObject = null;
-            let bestFurthestPick: fgui.GObject = null;
-            let maxScore = -Infinity;
-            let maxFurthestScore = -Infinity;
+            // 导航方向：dir.y>0=向下, dir.y<0=向上, dir.x>0=向右, dir.x<0=向左
+            const isVertical = dir.x === 0;
+            const isForward = isVertical ? (dir.y > 0) : (dir.x > 0);
 
-            // 检查是否启用循环导航
-            let wantsWrapAround = false;
+            // ====== 第一轮：只找同方向（Beam重叠）的元素 ======
+            let best: fgui.GObject = null;
+            let bestScore = Infinity;
+
+            const curCenterX = curRect.x + curRect.width * 0.5;
+            const curCenterY = curRect.y + curRect.height * 0.5;
 
             for (const sel of this._navigateChildren) {
                 if (sel === current) continue;
                 if (!sel._finalVisible || !(sel as any).enabled || !(sel as any).touchable) continue;
 
                 const selRect = sel.localToGlobalRect(0, 0, sel._width, sel._height);
-                const selCenter = cc.v2(selRect.x + selRect.width * 0.5, selRect.y + selRect.height * 0.5);
+                const selLeft = selRect.x;
+                const selRight = selRect.x + selRect.width;
+                const selTop = selRect.y;
+                const selBottom = selRect.y + selRect.height;
+                const selCenterX = selRect.x + selRect.width * 0.5;
+                const selCenterY = selRect.y + selRect.height * 0.5;
 
-                const myVector = selCenter.sub(startPos);
-                const dot = myVector.dot(dir);
-
-                // 如果元素在反方向且启用了循环导航，记录最远的那个
-                if (wantsWrapAround && dot < 0) {
-                    const score = -dot * myVector.magSqr();
-
-                    if (score > maxFurthestScore) {
-                        maxFurthestScore = score;
-                        bestFurthestPick = sel;
+                // 方向过滤（中心点）：目标中心必须在导航方向半平面内
+                if (isVertical) {
+                    if (isForward) {
+                        if (selCenterY <= curCenterY) continue;
+                    } else {
+                        if (selCenterY >= curCenterY) continue;
                     }
-
-                    continue;
+                } else {
+                    if (isForward) {
+                        if (selCenterX <= curCenterX) continue;
+                    } else {
+                        if (selCenterX >= curCenterX) continue;
+                    }
                 }
 
-                // 跳过方向错误或距离为0的元素
-                if (dot <= 0) continue;
+                // 检查是否有Beam重叠
+                let hasOverlap: boolean;
+                if (isVertical) {
+                    hasOverlap = !(selRight <= curLeft || selLeft >= curRight);
+                } else {
+                    hasOverlap = !(selBottom <= curTop || selTop >= curBottom);
+                }
 
-                // 第一权重：方向一致性（cos值）- 越符合导航方向分数越高
-                let score = dot / myVector.mag();
+                if (!hasOverlap) continue; // 第一轮只收重叠的
 
-                // 第二权重：距离惩罚 - 距离越远分数越低
-                const distancePenalty = 1 / (1 + myVector.mag() * 0.01);
-                score *= distancePenalty;
+                // 主轴距离（边到边）
+                let majorDist: number;
+                if (isVertical) {
+                    majorDist = isForward
+                        ? Math.max(0, selTop - curBottom)
+                        : Math.max(0, curTop - selBottom);
+                } else {
+                    majorDist = isForward
+                        ? Math.max(0, selLeft - curRight)
+                        : Math.max(0, curLeft - selRight);
+                }
 
-                // console.log(`元素 ${sel.name} 分数: ${score}, 距离: ${myVector.mag()}, 方向一致性: ${dot}`);
+                // 垂直方向中心偏移（对齐度微调）
+                const centerOffset = isVertical
+                    ? Math.abs(selCenterX - curCenterX)
+                    : Math.abs(selCenterY - curCenterY);
 
-                if (score > maxScore) {
-                    maxScore = score;
-                    bestPick = sel;
+                // 评分 = 主轴距离 + 中心偏移 × 0.1（偏移仅作平局裁决）
+                const score = majorDist + centerOffset * 0.1;
+
+                if (score < bestScore) {
+                    bestScore = score;
+                    best = sel;
                 }
             }
 
-            // 如果启用了循环导航且没有找到正向的，返回最远的
-            if (wantsWrapAround && bestPick == null) return bestFurthestPick;
+            if (best) return best;
 
-            return bestPick || current;
+            // ====== 第二轮：找不到同方向元素，用偏移惩罚评分 ======
+            bestScore = Infinity;
+
+            for (const sel of this._navigateChildren) {
+                if (sel === current) continue;
+                if (!sel._finalVisible || !(sel as any).enabled || !(sel as any).touchable) continue;
+
+                const selRect = sel.localToGlobalRect(0, 0, sel._width, sel._height);
+                const selCenterX = selRect.x + selRect.width * 0.5;
+                const selCenterY = selRect.y + selRect.height * 0.5;
+
+                const dx = selCenterX - curCenterX;
+                const dy = selCenterY - curCenterY;
+
+                // 方向过滤：中心点必须在导航方向半平面内
+                const dot = dir.x * dx + dir.y * dy;
+                if (dot <= 0) continue;
+
+                // 主轴距离和垂直偏移
+                const majorDist = isVertical ? Math.abs(dy) : Math.abs(dx);
+                const perpOffset = isVertical ? Math.abs(dx) : Math.abs(dy);
+
+                // 评分 = 主轴距离 + 偏移 × 5（偏离1px代价等于多走5px）
+                const score = majorDist + perpOffset * 5;
+
+                if (score < bestScore) {
+                    bestScore = score;
+                    best = sel;
+                }
+            }
+
+            return best || current;
         }
 
         public findSelectableOnUp(): GObject {
@@ -632,16 +695,16 @@ namespace fgui {
                     let len = navigateChildren.length;
                     for (let i: number = 0; i < len; ++i) {
                         let child: GObject = navigateChildren[i];
-                        if (child instanceof GButton || child instanceof GComboBox)
+                        if (child instanceof GComponent && this.currentNavigate != child)
                             child.navigate = false;
                     }
                     navigateChildren.length = 0;
 
-                    this.currentNavigate = null;
+                    // this.currentNavigate = null;
                     let cnt: number = g._children.length;
                     for (let i: number = 0; i < cnt; ++i) {
                         let child: GObject = g._children[i];
-                        if (child.canNavigate && child.visible && child.enabled)
+                        if (child.canNavigate && child._finalVisible && child.enabled && child.touchable)
                             navigateChildren.push(child);
 
                         if (child instanceof GComponent)
@@ -666,6 +729,8 @@ namespace fgui {
         }
         /** 取消可导航项 */
         public unlockNavigate(): void {
+            if (!this.canNavigate) return;
+
             this._isNavigateLocked = false;
             var navigateChildren = this._navigateChildren;
 

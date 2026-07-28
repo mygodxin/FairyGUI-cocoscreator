@@ -1164,7 +1164,19 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         });
         Object.defineProperty(GObject.prototype, "_finalVisible", {
             get: function () {
-                return this._visible && this._internalVisible && (!this._group || this._group._finalVisible);
+                if (!this._visible || !this._internalVisible)
+                    return false;
+                if (this._group && !this._group._finalVisible)
+                    return false;
+                var p = this._parent;
+                while (p) {
+                    if (!p._visible || !p._internalVisible)
+                        return false;
+                    if (p._group && !p._group._finalVisible)
+                        return false;
+                    p = p._parent;
+                }
+                return true;
             },
             enumerable: false,
             configurable: true
@@ -3061,7 +3073,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
             var navigateChildren = [];
             for (var i = 0; i < len; i++) {
                 var obj = this._children[i];
-                if (obj.canNavigate && obj.visible && obj.enabled) {
+                if (obj.canNavigate && obj._finalVisible && obj.enabled && obj.touchable) {
                     navigateChildren.push(obj);
                 }
                 if (obj instanceof GComponent)
@@ -3075,12 +3087,20 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
             },
             set: function (val) {
                 this._navigate = val;
-                if (this._navigateController && this._navigateController.pageCount == 2)
+                if (this._navigateController && this._navigateController.pageCount == 2) {
                     this._navigateController.selectedIndex = val ? 1 : 0;
+                    this.node.emit(fgui.Event.NAV_CHANGED);
+                }
             },
             enumerable: false,
             configurable: true
         });
+        GComponent.prototype.onNavChanged = function (callback, target) {
+            this.on(fgui.Event.NAV_CHANGED, callback, target);
+        };
+        GComponent.prototype.offNavChanged = function (callback, target) {
+            this.off(fgui.Event.NAV_CHANGED, callback, target);
+        };
         return GComponent;
     }(fgui.GObject));
     fgui.GComponent = GComponent;
@@ -9647,18 +9667,24 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
             return this._navigateRecord[winName];
         };
         GRoot.prototype.findSelectable = function (dir) {
+            if (!this.canNavigate)
+                return null;
             var current = this.currentNavigate;
             if (!current || this._navigateChildren.length === 0)
                 return current;
             dir = dir.normalize();
             dir.y = -dir.y;
-            var currentRect = current.localToGlobalRect(0, 0, current._width, current._height);
-            var startPos = cc.v2(currentRect.x + currentRect.width * 0.5, currentRect.y + currentRect.height * 0.5);
-            var bestPick = null;
-            var bestFurthestPick = null;
-            var maxScore = -Infinity;
-            var maxFurthestScore = -Infinity;
-            var wantsWrapAround = false;
+            var curRect = current.localToGlobalRect(0, 0, current._width, current._height);
+            var curLeft = curRect.x;
+            var curRight = curRect.x + curRect.width;
+            var curTop = curRect.y;
+            var curBottom = curRect.y + curRect.height;
+            var isVertical = dir.x === 0;
+            var isForward = isVertical ? (dir.y > 0) : (dir.x > 0);
+            var best = null;
+            var bestScore = Infinity;
+            var curCenterX = curRect.x + curRect.width * 0.5;
+            var curCenterY = curRect.y + curRect.height * 0.5;
             for (var _i = 0, _a = this._navigateChildren; _i < _a.length; _i++) {
                 var sel = _a[_i];
                 if (sel === current)
@@ -9666,30 +9692,87 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
                 if (!sel._finalVisible || !sel.enabled || !sel.touchable)
                     continue;
                 var selRect = sel.localToGlobalRect(0, 0, sel._width, sel._height);
-                var selCenter = cc.v2(selRect.x + selRect.width * 0.5, selRect.y + selRect.height * 0.5);
-                var myVector = selCenter.sub(startPos);
-                var dot = myVector.dot(dir);
-                if (wantsWrapAround && dot < 0) {
-                    var score_1 = -dot * myVector.magSqr();
-                    if (score_1 > maxFurthestScore) {
-                        maxFurthestScore = score_1;
-                        bestFurthestPick = sel;
+                var selLeft = selRect.x;
+                var selRight = selRect.x + selRect.width;
+                var selTop = selRect.y;
+                var selBottom = selRect.y + selRect.height;
+                var selCenterX = selRect.x + selRect.width * 0.5;
+                var selCenterY = selRect.y + selRect.height * 0.5;
+                if (isVertical) {
+                    if (isForward) {
+                        if (selCenterY <= curCenterY)
+                            continue;
                     }
-                    continue;
+                    else {
+                        if (selCenterY >= curCenterY)
+                            continue;
+                    }
                 }
-                if (dot <= 0)
+                else {
+                    if (isForward) {
+                        if (selCenterX <= curCenterX)
+                            continue;
+                    }
+                    else {
+                        if (selCenterX >= curCenterX)
+                            continue;
+                    }
+                }
+                var hasOverlap = void 0;
+                if (isVertical) {
+                    hasOverlap = !(selRight <= curLeft || selLeft >= curRight);
+                }
+                else {
+                    hasOverlap = !(selBottom <= curTop || selTop >= curBottom);
+                }
+                if (!hasOverlap)
                     continue;
-                var score = dot / myVector.mag();
-                var distancePenalty = 1 / (1 + myVector.mag() * 0.01);
-                score *= distancePenalty;
-                if (score > maxScore) {
-                    maxScore = score;
-                    bestPick = sel;
+                var majorDist = void 0;
+                if (isVertical) {
+                    majorDist = isForward
+                        ? Math.max(0, selTop - curBottom)
+                        : Math.max(0, curTop - selBottom);
+                }
+                else {
+                    majorDist = isForward
+                        ? Math.max(0, selLeft - curRight)
+                        : Math.max(0, curLeft - selRight);
+                }
+                var centerOffset = isVertical
+                    ? Math.abs(selCenterX - curCenterX)
+                    : Math.abs(selCenterY - curCenterY);
+                var score = majorDist + centerOffset * 0.1;
+                if (score < bestScore) {
+                    bestScore = score;
+                    best = sel;
                 }
             }
-            if (wantsWrapAround && bestPick == null)
-                return bestFurthestPick;
-            return bestPick || current;
+            if (best)
+                return best;
+            bestScore = Infinity;
+            for (var _b = 0, _c = this._navigateChildren; _b < _c.length; _b++) {
+                var sel = _c[_b];
+                if (sel === current)
+                    continue;
+                if (!sel._finalVisible || !sel.enabled || !sel.touchable)
+                    continue;
+                var selRect = sel.localToGlobalRect(0, 0, sel._width, sel._height);
+                var selCenterX = selRect.x + selRect.width * 0.5;
+                var selCenterY = selRect.y + selRect.height * 0.5;
+                var dx = selCenterX - curCenterX;
+                var dy = selCenterY - curCenterY;
+                var dot = dir.x * dx + dir.y * dy;
+                if (dot <= 0)
+                    continue;
+                var majorDist = isVertical ? Math.abs(dy) : Math.abs(dx);
+                var perpOffset = isVertical ? Math.abs(dx) : Math.abs(dy);
+                var score = majorDist + perpOffset * 5;
+                if (score < bestScore) {
+                    bestScore = score;
+                    best = sel;
+                }
+            }
+            return best || current;
         };
         GRoot.prototype.findSelectableOnUp = function () {
             return this.findSelectable(cc.Vec2.UP);
@@ -9715,15 +9798,14 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
                     var len = navigateChildren.length;
                     for (var i_1 = 0; i_1 < len; ++i_1) {
                         var child = navigateChildren[i_1];
-                        if (child instanceof fgui.GButton || child instanceof fgui.GComboBox)
+                        if (child instanceof fgui.GComponent && this.currentNavigate != child)
                             child.navigate = false;
                     }
                     navigateChildren.length = 0;
-                    this.currentNavigate = null;
                     var cnt = g._children.length;
                     for (var i_2 = 0; i_2 < cnt; ++i_2) {
                         var child = g._children[i_2];
-                        if (child.canNavigate && child.visible && child.enabled)
+                        if (child.canNavigate && child._finalVisible && child.enabled && child.touchable)
                             navigateChildren.push(child);
                         if (child instanceof fgui.GComponent)
                             navigateChildren.push.apply(navigateChildren, child.searchNavigateChildren());
@@ -9742,6 +9824,8 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
             this._navigateChildren = navigateChildren;
         };
         GRoot.prototype.unlockNavigate = function () {
+            if (!this.canNavigate)
+                return;
             this._isNavigateLocked = false;
             var navigateChildren = this._navigateChildren;
             var len = navigateChildren.length;
@@ -16418,6 +16502,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         Event.KEY_DOWN = "fui_key_down";
         Event.KEY_BACK = "fui_key_back";
         Event.KEY_ENTER = "fui_key_enter";
+        Event.NAV_CHANGED = "fui_nav_changed";
         Event.DISPLAY = "fui_display";
         Event.UNDISPLAY = "fui_undisplay";
         Event.GEAR_STOP = "fui_gear_stop";

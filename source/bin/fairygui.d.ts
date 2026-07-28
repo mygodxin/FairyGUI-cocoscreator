@@ -566,6 +566,8 @@ declare namespace fgui {
         searchNavigateChildren(): GObject[];
         set navigate(val: boolean);
         get navigate(): boolean;
+        onNavChanged(callback: Function, target?: any): void;
+        offNavChanged(callback: Function, target?: any): void;
     }
 }
 declare namespace fgui {
@@ -2204,6 +2206,7 @@ declare namespace fgui {
         static KEY_DOWN: string;
         static KEY_BACK: string;
         static KEY_ENTER: string;
+        static NAV_CHANGED: string;
         static DISPLAY: string;
         static UNDISPLAY: string;
         static GEAR_STOP: string;

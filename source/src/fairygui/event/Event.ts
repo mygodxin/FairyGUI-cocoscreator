@@ -16,7 +16,7 @@ namespace fgui {
         public static KEY_DOWN: string = "fui_key_down";
         public static KEY_BACK: string = "fui_key_back";
         public static KEY_ENTER: string = "fui_key_enter";
-
+        public static NAV_CHANGED: string = "fui_nav_changed";
 
         public static DISPLAY: string = "fui_display";
         public static UNDISPLAY: string = "fui_undisplay";

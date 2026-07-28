@@ -423,7 +423,19 @@ namespace fgui {
         }
 
         public get _finalVisible(): boolean {
-            return this._visible && this._internalVisible && (!this._group || this._group._finalVisible);
+            if (!this._visible || !this._internalVisible)
+                return false;
+            if (this._group && !this._group._finalVisible)
+                return false;
+            let p = this._parent;
+            while (p) {
+                if (!p._visible || !p._internalVisible)
+                    return false;
+                if (p._group && !p._group._finalVisible)
+                    return false;
+                p = p._parent;
+            }
+            return true;
         }
 
         public get internalVisible3(): boolean {

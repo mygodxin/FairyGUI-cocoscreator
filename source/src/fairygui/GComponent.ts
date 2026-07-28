@@ -1260,7 +1260,7 @@ namespace fgui {
             let navigateChildren: GObject[] = [];
             for (let i = 0; i < len; i++) {
                 let obj = this._children[i];
-                if (obj.canNavigate && obj.visible && obj.enabled) {
+                if (obj.canNavigate && obj._finalVisible && obj.enabled && obj.touchable) {
                     navigateChildren.push(obj);
                 }
                 if (obj instanceof GComponent)
@@ -1272,11 +1272,20 @@ namespace fgui {
         // navigate
         public set navigate(val: boolean) {
             this._navigate = val;
-            if (this._navigateController && this._navigateController.pageCount == 2)
+            if (this._navigateController && this._navigateController.pageCount == 2) {
                 this._navigateController.selectedIndex = val ? 1 : 0;
+                this.node.emit(Event.NAV_CHANGED);
+            }
         }
         public get navigate(): boolean {
             return this._navigate;
+        }
+        public onNavChanged(callback: Function, target?: any): void {
+            this.on(Event.NAV_CHANGED, callback, target);
+        }
+
+        public offNavChanged(callback: Function, target?: any): void {
+            this.off(Event.NAV_CHANGED, callback, target);
         }
     }
 
