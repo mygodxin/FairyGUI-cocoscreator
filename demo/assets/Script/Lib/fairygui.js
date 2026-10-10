@@ -5019,6 +5019,539 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
 })(fgui || (fgui = {}));
 
 (function (fgui) {
+    var GLineConnector = (function () {
+        function GLineConnector(owner) {
+            this._lineWidth = 2;
+            this._lineColor = new cc.Color(255, 255, 255, 255);
+            this._fromOffset = new cc.Vec2(0, 0);
+            this._toOffset = new cc.Vec2(0, 0);
+            this._visible = true;
+            this._dirty = false;
+            this._curve = 0;
+            this._dashed = false;
+            this._dashLength = 10;
+            this._gapLength = 5;
+            this._showArrow = false;
+            this._arrowSize = 10;
+            this._fromLinker = LinkerType.Auto;
+            this._toLinker = LinkerType.Auto;
+            this._scheduled = false;
+            this._node = new cc.Node("GLineConnector");
+            this._graphics = this._node.addComponent(cc.Graphics);
+            this._fromXYHandler = this.markDirty.bind(this);
+            this._fromSizeHandler = this.markDirty.bind(this);
+            this._toXYHandler = this.markDirty.bind(this);
+            this._toSizeHandler = this.markDirty.bind(this);
+            if (owner) {
+                this.addTo(owner);
+            }
+        }
+        GLineConnector.prototype.addTo = function (owner) {
+            if (this._node.parent !== owner.displayListContainer) {
+                this._node.parent = owner.displayListContainer;
+                this._node.setSiblingIndex(0);
+            }
+        };
+        GLineConnector.prototype.removeFromParent = function () {
+            if (this._node.parent) {
+                this._node.removeFromParent(false);
+            }
+        };
+        GLineConnector.prototype.connect = function (from, to) {
+            this.disconnect();
+            this._from = from;
+            this._to = to;
+            if (this._from) {
+                this._from.on(fgui.Event.XY_CHANGED, this._fromXYHandler, this);
+                this._from.on(fgui.Event.SIZE_CHANGED, this._fromSizeHandler, this);
+            }
+            if (this._to) {
+                this._to.on(fgui.Event.XY_CHANGED, this._toXYHandler, this);
+                this._to.on(fgui.Event.SIZE_CHANGED, this._toSizeHandler, this);
+            }
+            this.markDirty();
+        };
+        GLineConnector.prototype.disconnect = function () {
+            if (this._from) {
+                this._from.off(fgui.Event.XY_CHANGED, this._fromXYHandler, this);
+                this._from.off(fgui.Event.SIZE_CHANGED, this._fromSizeHandler, this);
+            }
+            if (this._to) {
+                this._to.off(fgui.Event.XY_CHANGED, this._toXYHandler, this);
+                this._to.off(fgui.Event.SIZE_CHANGED, this._toSizeHandler, this);
+            }
+            this._from = null;
+            this._to = null;
+            this.clear();
+            this._scheduled = false;
+        };
+        GLineConnector.prototype.markDirty = function () {
+            if (this._dirty)
+                return;
+            this._dirty = true;
+            if (!this._scheduled) {
+                this._scheduled = true;
+                cc.director.getScheduler().schedule(this._doUpdateLine.bind(this), this, 0, 0, 0, false);
+            }
+        };
+        GLineConnector.prototype._doUpdateLine = function (dt) {
+            this._scheduled = false;
+            cc.director.getScheduler().unschedule(this._doUpdateLine, this);
+            this.updateLine();
+        };
+        GLineConnector.prototype.clear = function () {
+            this._graphics.clear();
+            this._dirty = false;
+        };
+        GLineConnector.prototype.updateLine = function () {
+            this._dirty = false;
+            if (!this._visible || !this._from || !this._to) {
+                this._graphics.clear();
+                return;
+            }
+            this._graphics.clear();
+            var fromPt = this.getLinkerPoint(this._from, this._fromLinker, this._fromOffset);
+            var toPt = this.getLinkerPoint(this._to, this._toLinker, this._toOffset);
+            if (this._fromLinker == LinkerType.Auto) {
+                fromPt = this.getAutoLinkerPoint(this._from, toPt, this._fromOffset);
+            }
+            if (this._toLinker == LinkerType.Auto) {
+                toPt = this.getAutoLinkerPoint(this._to, fromPt, this._toOffset);
+            }
+            this.drawConnection(fromPt, toPt);
+        };
+        GLineConnector.prototype.getAutoLinkerPoint = function (target, targetPt, offset) {
+            var cx = target.x + target.width / 2;
+            var cy = target.y + target.height / 2;
+            var dx = targetPt.x - cx;
+            var dy = targetPt.y - cy;
+            var absDx = Math.abs(dx);
+            var absDy = Math.abs(dy);
+            var pt = new cc.Vec2();
+            if (absDx * target.height > absDy * target.width) {
+                if (dx > 0) {
+                    pt.x = target.x + target.width;
+                    pt.y = cy + (dy / absDx) * (target.width / 2);
+                }
+                else {
+                    pt.x = target.x;
+                    pt.y = cy - (dy / absDx) * (target.width / 2);
+                }
+            }
+            else {
+                if (dy > 0) {
+                    pt.y = target.y + target.height;
+                    pt.x = cx + (dx / absDy) * (target.height / 2);
+                }
+                else {
+                    pt.y = target.y;
+                    pt.x = cx - (dx / absDy) * (target.height / 2);
+                }
+            }
+            pt.x = Math.max(target.x, Math.min(target.x + target.width, pt.x));
+            pt.y = Math.max(target.y, Math.min(target.y + target.height, pt.y));
+            pt.x += offset.x;
+            pt.y += offset.y;
+            return pt;
+        };
+        GLineConnector.prototype.getLinkerPoint = function (target, linkerType, offset) {
+            var pt = new cc.Vec2();
+            switch (linkerType) {
+                case LinkerType.Auto:
+                case LinkerType.Center:
+                    pt.x = target.x + target.width / 2;
+                    pt.y = target.y + target.height / 2;
+                    break;
+                case LinkerType.Top:
+                    pt.x = target.x + target.width / 2;
+                    pt.y = target.y + target.height;
+                    break;
+                case LinkerType.Bottom:
+                    pt.x = target.x + target.width / 2;
+                    pt.y = target.y;
+                    break;
+                case LinkerType.Left:
+                    pt.x = target.x;
+                    pt.y = target.y + target.height / 2;
+                    break;
+                case LinkerType.Right:
+                    pt.x = target.x + target.width;
+                    pt.y = target.y + target.height / 2;
+                    break;
+                case LinkerType.TopLeft:
+                    pt.x = target.x;
+                    pt.y = target.y + target.height;
+                    break;
+                case LinkerType.TopRight:
+                    pt.x = target.x + target.width;
+                    pt.y = target.y + target.height;
+                    break;
+                case LinkerType.BottomLeft:
+                    pt.x = target.x;
+                    pt.y = target.y;
+                    break;
+                case LinkerType.BottomRight:
+                    pt.x = target.x + target.width;
+                    pt.y = target.y;
+                    break;
+            }
+            pt.x += offset.x;
+            pt.y += offset.y;
+            return pt;
+        };
+        GLineConnector.prototype.drawConnection = function (from, to) {
+            var ctx = this._graphics;
+            ctx.lineWidth = this._lineWidth;
+            ctx.strokeColor = this._lineColor;
+            if (this._curve > 0) {
+                this.drawCurvedLine(ctx, from, to);
+            }
+            else if (this._dashed) {
+                this.drawDashedLine(ctx, from, to);
+            }
+            else {
+                ctx.moveTo(from.x, -from.y);
+                ctx.lineTo(to.x, -to.y);
+            }
+            ctx.stroke();
+            if (this._showArrow) {
+                this.drawArrow(to, from);
+            }
+            if (this._fromColor) {
+                this.drawEndDot(from, this._fromColor);
+            }
+            if (this._toColor) {
+                this.drawEndDot(to, this._toColor);
+            }
+        };
+        GLineConnector.prototype.drawCurvedLine = function (ctx, from, to) {
+            var dx = to.x - from.x;
+            var dy = to.y - from.y;
+            var dist = Math.sqrt(dx * dx + dy * dy);
+            var controlOffset = dist * this._curve * 0.5;
+            var cx1, cy1, cx2, cy2;
+            if (Math.abs(dx) > Math.abs(dy)) {
+                cx1 = from.x;
+                cy1 = from.y + (dy > 0 ? controlOffset : -controlOffset);
+                cx2 = to.x;
+                cy2 = to.y + (dy > 0 ? -controlOffset : controlOffset);
+            }
+            else {
+                cx1 = from.x + (dx > 0 ? controlOffset : -controlOffset);
+                cy1 = from.y;
+                cx2 = to.x + (dx > 0 ? -controlOffset : controlOffset);
+                cy2 = to.y;
+            }
+            ctx.moveTo(from.x, -from.y);
+            ctx.bezierCurveTo(cx1, -cy1, cx2, -cy2, to.x, -to.y);
+        };
+        GLineConnector.prototype.drawDashedLine = function (ctx, from, to) {
+            var dx = to.x - from.x;
+            var dy = to.y - from.y;
+            var dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist <= 0)
+                return;
+            var ux = dx / dist;
+            var uy = dy / dist;
+            var drawn = 0;
+            var toggle = true;
+            ctx.moveTo(from.x, -from.y);
+            while (drawn < dist) {
+                var segLen = toggle ? this._dashLength : this._gapLength;
+                if (drawn + segLen > dist)
+                    segLen = dist - drawn;
+                var ex = from.x + (drawn + segLen) * ux;
+                var ey = from.y + (drawn + segLen) * uy;
+                if (toggle) {
+                    ctx.lineTo(ex, -ey);
+                }
+                else {
+                    ctx.moveTo(ex, -ey);
+                }
+                drawn += segLen;
+                toggle = !toggle;
+            }
+        };
+        GLineConnector.prototype.drawArrow = function (tip, from) {
+            var ctx = this._graphics;
+            var dx = tip.x - from.x;
+            var dy = tip.y - from.y;
+            var angle = Math.atan2(dy, dx);
+            var arrowSize = this._arrowSize;
+            var arrowAngle = Math.PI / 6;
+            var x1 = tip.x - arrowSize * Math.cos(angle - arrowAngle);
+            var y1 = tip.y - arrowSize * Math.sin(angle - arrowAngle);
+            var x2 = tip.x - arrowSize * Math.cos(angle + arrowAngle);
+            var y2 = tip.y - arrowSize * Math.sin(angle + arrowAngle);
+            ctx.moveTo(tip.x, -tip.y);
+            ctx.lineTo(x1, -y1);
+            ctx.moveTo(tip.x, -tip.y);
+            ctx.lineTo(x2, -y2);
+            ctx.stroke();
+        };
+        GLineConnector.prototype.drawEndDot = function (pt, color) {
+            var ctx = this._graphics;
+            var oldColor = ctx.strokeColor;
+            ctx.fillColor = color;
+            ctx.strokeColor = color;
+            ctx.circle(pt.x, -pt.y, this._lineWidth * 2.5);
+            ctx.fill();
+            ctx.stroke();
+            ctx.strokeColor = oldColor;
+        };
+        Object.defineProperty(GLineConnector.prototype, "node", {
+            get: function () {
+                return this._node;
+            },
+            enumerable: false,
+            configurable: true
+        });
+        Object.defineProperty(GLineConnector.prototype, "from", {
+            get: function () {
+                return this._from;
+            },
+            enumerable: false,
+            configurable: true
+        });
+        Object.defineProperty(GLineConnector.prototype, "to", {
+            get: function () {
+                return this._to;
+            },
+            enumerable: false,
+            configurable: true
+        });
+        Object.defineProperty(GLineConnector.prototype, "lineWidth", {
+            get: function () {
+                return this._lineWidth;
+            },
+            set: function (value) {
+                if (this._lineWidth != value) {
+                    this._lineWidth = value;
+                    this.markDirty();
+                }
+            },
+            enumerable: false,
+            configurable: true
+        });
+        Object.defineProperty(GLineConnector.prototype, "lineColor", {
+            get: function () {
+                return this._lineColor;
+            },
+            set: function (value) {
+                this._lineColor.set(value);
+                this.markDirty();
+            },
+            enumerable: false,
+            configurable: true
+        });
+        Object.defineProperty(GLineConnector.prototype, "fromColor", {
+            get: function () {
+                return this._fromColor;
+            },
+            set: function (value) {
+                if (value) {
+                    if (!this._fromColor)
+                        this._fromColor = new cc.Color();
+                    this._fromColor.set(value);
+                }
+                else {
+                    this._fromColor = null;
+                }
+                this.markDirty();
+            },
+            enumerable: false,
+            configurable: true
+        });
+        Object.defineProperty(GLineConnector.prototype, "toColor", {
+            get: function () {
+                return this._toColor;
+            },
+            set: function (value) {
+                if (value) {
+                    if (!this._toColor)
+                        this._toColor = new cc.Color();
+                    this._toColor.set(value);
+                }
+                else {
+                    this._toColor = null;
+                }
+                this.markDirty();
+            },
+            enumerable: false,
+            configurable: true
+        });
+        Object.defineProperty(GLineConnector.prototype, "fromOffset", {
+            get: function () {
+                return this._fromOffset;
+            },
+            set: function (value) {
+                this._fromOffset.set(value);
+                this.markDirty();
+            },
+            enumerable: false,
+            configurable: true
+        });
+        Object.defineProperty(GLineConnector.prototype, "toOffset", {
+            get: function () {
+                return this._toOffset;
+            },
+            set: function (value) {
+                this._toOffset.set(value);
+                this.markDirty();
+            },
+            enumerable: false,
+            configurable: true
+        });
+        Object.defineProperty(GLineConnector.prototype, "visible", {
+            get: function () {
+                return this._visible;
+            },
+            set: function (value) {
+                if (this._visible != value) {
+                    this._visible = value;
+                    this._node.active = value;
+                    this.markDirty();
+                }
+            },
+            enumerable: false,
+            configurable: true
+        });
+        Object.defineProperty(GLineConnector.prototype, "curve", {
+            get: function () {
+                return this._curve;
+            },
+            set: function (value) {
+                var v = Math.max(0, Math.min(1, value));
+                if (this._curve != v) {
+                    this._curve = v;
+                    this.markDirty();
+                }
+            },
+            enumerable: false,
+            configurable: true
+        });
+        Object.defineProperty(GLineConnector.prototype, "dashed", {
+            get: function () {
+                return this._dashed;
+            },
+            set: function (value) {
+                if (this._dashed != value) {
+                    this._dashed = value;
+                    this.markDirty();
+                }
+            },
+            enumerable: false,
+            configurable: true
+        });
+        Object.defineProperty(GLineConnector.prototype, "dashLength", {
+            get: function () {
+                return this._dashLength;
+            },
+            set: function (value) {
+                if (this._dashLength != value) {
+                    this._dashLength = Math.max(1, value);
+                    this.markDirty();
+                }
+            },
+            enumerable: false,
+            configurable: true
+        });
+        Object.defineProperty(GLineConnector.prototype, "gapLength", {
+            get: function () {
+                return this._gapLength;
+            },
+            set: function (value) {
+                if (this._gapLength != value) {
+                    this._gapLength = Math.max(1, value);
+                    this.markDirty();
+                }
+            },
+            enumerable: false,
+            configurable: true
+        });
+        Object.defineProperty(GLineConnector.prototype, "showArrow", {
+            get: function () {
+                return this._showArrow;
+            },
+            set: function (value) {
+                if (this._showArrow != value) {
+                    this._showArrow = value;
+                    this.markDirty();
+                }
+            },
+            enumerable: false,
+            configurable: true
+        });
+        Object.defineProperty(GLineConnector.prototype, "arrowSize", {
+            get: function () {
+                return this._arrowSize;
+            },
+            set: function (value) {
+                if (this._arrowSize != value) {
+                    this._arrowSize = value;
+                    this.markDirty();
+                }
+            },
+            enumerable: false,
+            configurable: true
+        });
+        Object.defineProperty(GLineConnector.prototype, "fromLinker", {
+            get: function () {
+                return this._fromLinker;
+            },
+            set: function (value) {
+                if (this._fromLinker != value) {
+                    this._fromLinker = value;
+                    this.markDirty();
+                }
+            },
+            enumerable: false,
+            configurable: true
+        });
+        Object.defineProperty(GLineConnector.prototype, "toLinker", {
+            get: function () {
+                return this._toLinker;
+            },
+            set: function (value) {
+                if (this._toLinker != value) {
+                    this._toLinker = value;
+                    this.markDirty();
+                }
+            },
+            enumerable: false,
+            configurable: true
+        });
+        GLineConnector.prototype.destroy = function () {
+            this.disconnect();
+            if (this._scheduled) {
+                cc.director.getScheduler().unschedule(this._doUpdateLine, this);
+                this._scheduled = false;
+            }
+            if (this._node) {
+                this._node.removeFromParent(true);
+                this._node = null;
+            }
+            this._graphics = null;
+        };
+        return GLineConnector;
+    }());
+    fgui.GLineConnector = GLineConnector;
+    var LinkerType;
+    (function (LinkerType) {
+        LinkerType[LinkerType["Auto"] = 0] = "Auto";
+        LinkerType[LinkerType["Center"] = 1] = "Center";
+        LinkerType[LinkerType["Top"] = 2] = "Top";
+        LinkerType[LinkerType["Bottom"] = 3] = "Bottom";
+        LinkerType[LinkerType["Left"] = 4] = "Left";
+        LinkerType[LinkerType["Right"] = 5] = "Right";
+        LinkerType[LinkerType["TopLeft"] = 6] = "TopLeft";
+        LinkerType[LinkerType["TopRight"] = 7] = "TopRight";
+        LinkerType[LinkerType["BottomLeft"] = 8] = "BottomLeft";
+        LinkerType[LinkerType["BottomRight"] = 9] = "BottomRight";
+    })(LinkerType = fgui.LinkerType || (fgui.LinkerType = {}));
+})(fgui || (fgui = {}));
+
+(function (fgui) {
     var GList = (function (_super) {
         __extends(GList, _super);
         function GList() {
@@ -9635,7 +10168,6 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
                 while (parent) {
                     if (parent instanceof fgui.GList) {
                         var index = parent.childIndexToItemIndex(parent.getChildIndex(current));
-                        parent.selectedIndex = index;
                         parent.scrollToView(index, false, false);
                     }
                     if (parent instanceof fgui.GComponent && parent.scrollPane) {
@@ -9645,6 +10177,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
                     parent = parent.parent;
                 }
                 this._currentNavigate = value;
+                this.node.emit(fgui.Event.NAV_CHANGED, value);
                 var navigateChildren = this._navigateChildren;
                 var len = navigateChildren.length;
                 for (var i = 0; i < len; ++i) {
@@ -9652,7 +10185,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
                     var isSelected = value == child;
                     if (child instanceof fgui.GComponent)
                         child.navigate = isSelected;
-                    if (child instanceof fgui.GButton)
+                    if (child instanceof fgui.GButton && isSelected)
                         child.selected = isSelected;
                 }
                 var topWin = this.getTopWindow();

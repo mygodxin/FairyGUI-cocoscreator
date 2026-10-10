@@ -505,7 +505,7 @@ namespace fgui {
             while (parent) {
                 if (parent instanceof GList) {
                     var index: number = parent.childIndexToItemIndex(parent.getChildIndex(current));
-                    parent.selectedIndex = index;
+                    // parent.selectedIndex = index;
                     parent.scrollToView(index, false, false);
                     // break;
                 }
@@ -517,6 +517,7 @@ namespace fgui {
             }
 
             this._currentNavigate = value;
+            this.node.emit(Event.NAV_CHANGED, value);
 
             var navigateChildren = this._navigateChildren;
 
@@ -526,7 +527,7 @@ namespace fgui {
                 var isSelected = value == child;
                 if (child instanceof GComponent)
                     child.navigate = isSelected;
-                if (child instanceof GButton)
+                if (child instanceof GButton && isSelected)
                     child.selected = isSelected;
             }
             // console.log("导航:", value != null ? value.name : "null");

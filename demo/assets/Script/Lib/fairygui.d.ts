@@ -835,6 +835,97 @@ declare namespace fgui {
     }
 }
 declare namespace fgui {
+    class GLineConnector {
+        private _node;
+        private _graphics;
+        private _from;
+        private _to;
+        private _lineWidth;
+        private _lineColor;
+        private _fromColor;
+        private _toColor;
+        private _fromOffset;
+        private _toOffset;
+        private _visible;
+        private _dirty;
+        private _curve;
+        private _dashed;
+        private _dashLength;
+        private _gapLength;
+        private _showArrow;
+        private _arrowSize;
+        private _fromLinker;
+        private _toLinker;
+        private _fromXYHandler;
+        private _fromSizeHandler;
+        private _toXYHandler;
+        private _toSizeHandler;
+        private _scheduled;
+        constructor(owner?: GComponent);
+        addTo(owner: GComponent): void;
+        removeFromParent(): void;
+        connect(from: GObject, to: GObject): void;
+        disconnect(): void;
+        private markDirty;
+        private _doUpdateLine;
+        clear(): void;
+        updateLine(): void;
+        private getAutoLinkerPoint;
+        private getLinkerPoint;
+        private drawConnection;
+        private drawCurvedLine;
+        private drawDashedLine;
+        private drawArrow;
+        private drawEndDot;
+        get node(): cc.Node;
+        get from(): GObject;
+        get to(): GObject;
+        get lineWidth(): number;
+        set lineWidth(value: number);
+        get lineColor(): cc.Color;
+        set lineColor(value: cc.Color);
+        get fromColor(): cc.Color;
+        set fromColor(value: cc.Color);
+        get toColor(): cc.Color;
+        set toColor(value: cc.Color);
+        get fromOffset(): cc.Vec2;
+        set fromOffset(value: cc.Vec2);
+        get toOffset(): cc.Vec2;
+        set toOffset(value: cc.Vec2);
+        get visible(): boolean;
+        set visible(value: boolean);
+        get curve(): number;
+        set curve(value: number);
+        get dashed(): boolean;
+        set dashed(value: boolean);
+        get dashLength(): number;
+        set dashLength(value: number);
+        get gapLength(): number;
+        set gapLength(value: number);
+        get showArrow(): boolean;
+        set showArrow(value: boolean);
+        get arrowSize(): number;
+        set arrowSize(value: number);
+        get fromLinker(): LinkerType;
+        set fromLinker(value: LinkerType);
+        get toLinker(): LinkerType;
+        set toLinker(value: LinkerType);
+        destroy(): void;
+    }
+    enum LinkerType {
+        Auto = 0,
+        Center = 1,
+        Top = 2,
+        Bottom = 3,
+        Left = 4,
+        Right = 5,
+        TopLeft = 6,
+        TopRight = 7,
+        BottomLeft = 8,
+        BottomRight = 9
+    }
+}
+declare namespace fgui {
     class GList extends GComponent {
         itemRenderer: (index: number, item: GObject) => void;
         itemProvider: (index: number) => string;
